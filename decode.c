@@ -14,22 +14,22 @@
 #include <string.h>
 
 // print out the steps and errors
-static void logs(const char *fmt, ...);
+static void logs(const char* fmt, ...);
 
-static int decode_packet(AVPacket *packet, AVCodecContext *codec_ctx, AVFrame *frame);
+static int decode_packet(AVPacket* packet,
+                         AVCodecContext* codec_ctx,
+                         AVFrame* frame);
 
 void write_sample(float sample, float max_volume);
 
 #define AV_TRY(command)                                  \
-  if ((err = command) != 0)                              \
-  {                                                      \
+  if ((err = command) != 0) {                            \
     av_strerror(err, err_str, err_str_len);              \
     logs(#command " returned string:\n\t%s\n", err_str); \
     exit(-1);                                            \
   }
 
-int main(int argc, char const *argv[])
-{
+int main(int argc, char const* argv[]) {
   // Error things.
   int err = 0;
   const int err_str_len = 2048;
@@ -38,14 +38,14 @@ int main(int argc, char const *argv[])
   logs("Initialising decoding process.");
   logs("initialising codecs.");
 
-  av_register_all();
-  //avcodec_register_all();
+  // av_register_all();
+  // avcodec_register_all();
 
-  const char *audio_filename = argv[1];
+  const char* audio_filename = argv[1];
   logs("Input file: %s", audio_filename);
 
   // const AVCodec *codec;
-  AVFormatContext *fmt_ctx = avformat_alloc_context();
+  AVFormatContext* fmt_ctx = avformat_alloc_context();
 
   AV_TRY(avformat_open_input(&fmt_ctx, audio_filename, NULL, NULL))
 
@@ -58,14 +58,13 @@ int main(int argc, char const *argv[])
 
   logs("Get the codec etc.");
 
-  AVCodec *codec = NULL;
-  AVCodecParameters *codec_params = NULL;
+  AVCodec* codec = NULL;
+  AVCodecParameters* codec_params = NULL;
   int audio_stream_index = -1;
 
-  for (int i = 0; i < fmt_ctx->nb_streams; i++)
-  {
+  for (int i = 0; i < fmt_ctx->nb_streams; i++) {
     // Get local variables for the codec and params etc
-    AVCodecParameters *local_codec_params = NULL;
+    AVCodecParameters* local_codec_params = NULL;
     local_codec_params = fmt_ctx->streams[i]->codecpar;
 
     // log some information about it
@@ -80,25 +79,21 @@ int main(int argc, char const *argv[])
     logs("AVStream->duration %" PRId64, fmt_ctx->streams[i]->duration);
 
     logs("finding the proper decoder (CODEC)");
-    AVCodec *local_codec = NULL;
+    AVCodec* local_codec = NULL;
     // find the decoder.
     local_codec = avcodec_find_decoder(local_codec_params->codec_id);
-    if (local_codec == NULL)
-    {
+    if (local_codec == NULL) {
       logs("ERROR: Unsupported codec!!");
       return -1;
     }
 
-    if (local_codec_params->codec_type == AVMEDIA_TYPE_AUDIO)
-    {
+    if (local_codec_params->codec_type == AVMEDIA_TYPE_AUDIO) {
       codec = local_codec;
       codec_params = local_codec_params;
       audio_stream_index = i;
       logs("Audio Codec: %d channels, sample rate %d",
            local_codec_params->channels, local_codec_params->sample_rate);
-    }
-    else if (local_codec_params->codec_type == AVMEDIA_TYPE_VIDEO)
-    {
+    } else if (local_codec_params->codec_type == AVMEDIA_TYPE_VIDEO) {
       logs("Video Codec: resolution %d x %d", local_codec_params->width,
            local_codec_params->height);
     }
@@ -109,9 +104,8 @@ int main(int argc, char const *argv[])
 
   logs("Picked stream %d.", audio_stream_index);
 
-  AVCodecContext *codec_ctx = avcodec_alloc_context3(codec);
-  if (!codec_ctx)
-  {
+  AVCodecContext* codec_ctx = avcodec_alloc_context3(codec);
+  if (!codec_ctx) {
     logs("Error: Failed to allocate memory for codec context");
     return -1;
   }
@@ -123,29 +117,24 @@ int main(int argc, char const *argv[])
   AV_TRY(avcodec_open2(codec_ctx, codec, NULL))
 
   // allocate a frame and packet
-  AVFrame *frame = av_frame_alloc();
-  if (!frame)
-  {
+  AVFrame* frame = av_frame_alloc();
+  if (!frame) {
     logs("Failed to allocate memory for frame.");
   }
-  AVPacket *packet = av_packet_alloc();
-  if (!packet)
-  {
+  AVPacket* packet = av_packet_alloc();
+  if (!packet) {
     logs("Failed to allocate memory for packet.");
   }
 
   int response = 0;
 
-  while (av_read_frame(fmt_ctx, packet) >= 0)
-  {
-    if (packet->stream_index == audio_stream_index)
-    {
+  while (av_read_frame(fmt_ctx, packet) >= 0) {
+    if (packet->stream_index == audio_stream_index) {
       response = decode_packet(packet, codec_ctx, frame);
       if (response < 0)
         break;
     }
     av_packet_unref(packet);
-    av_frame_unref(frame);
   }
 
   logs("Releasing resources");
@@ -155,64 +144,52 @@ int main(int argc, char const *argv[])
   av_frame_free(&frame);
   avcodec_free_context(&codec_ctx);
 
-  // logs("Writing random data");
-
-  // Write some random samples for now :)
-  // for (;;)
-  // {
-  //   float value = (float)(rand() - rand()) / (float)(INT32_MAX);
-  //   write_sample(value, 0.01);
-  // }
-
   return 0;
 }
 
 // We're always going to want to decode our audio as f32 (for analysis).
 // However, when we're outputting with out123, the default is to output s16.
 // This function performs the conversion for us, and outputs the result.
-void write_sample(float sample, float max_volume)
-{
-  // uint16_t le = (uint16_t)(sample * 32767 * max_volume);
-  // fwrite(&le, 1, sizeof(le), stdout);
-  fwrite(&sample, 1, sizeof(sample), stdout);
+void write_sample(float sample, float max_volume) {
+  uint16_t le = (uint16_t)(sample * 32767 * max_volume);
+  fwrite(&le, 1, sizeof(le), stdout);
+  // fwrite(&sample, 1, sizeof(sample), stdout);
 }
 
-static int decode_packet(AVPacket *packet, AVCodecContext *codec_ctx, AVFrame *frame)
-{
+static int decode_packet(AVPacket* packet,
+                         AVCodecContext* codec_ctx,
+                         AVFrame* frame) {
   int response = avcodec_send_packet(codec_ctx, packet);
-  if (response < 0)
-  {
-    logs("Error while sending a packet to the decoder: %s", av_err2str(response));
+  if (response < 0) {
+    logs("Error while sending a packet to the decoder: %s",
+         av_err2str(response));
     return response;
   }
-  while (response >= 0)
-  {
+  while (response >= 0) {
     response = avcodec_receive_frame(codec_ctx, frame);
-    if (response == AVERROR(EAGAIN) || response == AVERROR_EOF)
-    {
+    if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
       break;
-    }
-    else if (response < 0)
-    {
-      logs("Error while receiving a frame from the decoder: %s", av_err2str(response));
+    } else if (response < 0) {
+      logs("Error while receiving a frame from the decoder: %s",
+           av_err2str(response));
       return response;
     }
 
-    int data_size = av_get_bytes_per_sample(codec_ctx->sample_fmt);
-    if (data_size < 0)
-    {
-      logs("Error, failed to calculate data size!");
-      exit(1);
-    }
-
-    float sample;
-    for (int i = 0; i < frame->nb_samples; i++)
-    {
-      for (int ch = 0; ch < codec_ctx->channels; ch++)
-      {
-        memcpy(&sample, frame->data[ch] + data_size * i, (size_t)data_size);
-        write_sample(sample, 1.0);
+    if (response >= 0) {
+      int data_size = av_get_bytes_per_sample(codec_ctx->sample_fmt);
+      if (data_size < 0) {
+        logs("Error, failed to calculate data size!");
+        exit(1);
       }
+
+      float sample;
+      for (int i = 0; i < frame->nb_samples; i++) {
+        for (int ch = 0; ch < codec_ctx->channels; ch++) {
+          memcpy(&sample, frame->data[ch] + data_size * i, (size_t)data_size);
+          write_sample(sample, 1.0);
+        }
+      }
+      av_frame_unref(frame);
     }
   }
 
@@ -220,8 +197,7 @@ static int decode_packet(AVPacket *packet, AVCodecContext *codec_ctx, AVFrame *f
 }
 
 // logging implementation
-static void logs(const char *fmt, ...)
-{
+static void logs(const char* fmt, ...) {
   va_list args;
   fprintf(stderr, "LOG: ");
   va_start(args, fmt);

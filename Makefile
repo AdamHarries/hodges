@@ -1,4 +1,4 @@
-
+CC=gcc
 FFMPEG_LIBS=    libavdevice                        \
                 libavformat                        \
                 libavfilter                        \
@@ -7,19 +7,26 @@ FFMPEG_LIBS=    libavdevice                        \
                 libswscale                         \
 				libavutil \
 
-CFLAGS += -Wall -Werror -O3
+CFLAGS +=  -g
 CFLAGS := $(shell pkg-config --cflags $(FFMPEG_LIBS)) $(CFLAGS)
 LDLIBS := $(shell pkg-config --libs $(FFMPEG_LIBS)) $(LDLIBS)
 
+all: decode remuxing decodeimage
 
 decode: clean 
-	clang $(CFLAGS) $(LDLIBS) -o decode decode.c
+	$(CC) $(CFLAGS) $(LDLIBS) -o decode decode.c
 
-run: decode romance.mp3
-	./decode romance.mp3 | out123
+remuxing: clean 
+	$(CC) $(CFLAGS) $(LDLIBS) -o remuxing remuxing.c
 
-# run: decode romance.mp3 speakerpipe-osx/speakerpipe
-# 	./decode romance.mp3 | speakerpipe-osx/speakerpipe
+decodeimage: clean 
+	$(CC) $(CFLAGS) $(LDLIBS) -o decodeimage decodeimage.c
+
+# run: decode romance.mp3
+# 	./decode romance.mp3 | out123
+
+run: decode romance.mp3 speakerpipe-osx/speakerpipe
+	./decode romance.mp3 | speakerpipe-osx/speakerpipe
 
 
 speakerpipe-osx/speakerpipe: 
@@ -28,4 +35,7 @@ speakerpipe-osx/speakerpipe:
 	$(MAKE)
 
 clean: 
+	rm -rf *.dSYM
 	rm -f decode
+	rm -f remuxing
+	rm -f decodeimage
