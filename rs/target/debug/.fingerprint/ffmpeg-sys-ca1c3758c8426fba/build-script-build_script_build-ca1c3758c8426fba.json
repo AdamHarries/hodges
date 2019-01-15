@@ -1,1 +1,0 @@
-{"rustc":8336910645789309167,"features":"[\"avcodec\", \"avdevice\", \"avfilter\", \"avformat\", \"avresample\", \"postproc\", \"swresample\", \"swscale\"]","target":4944179213620976468,"profile":11870183705523825133,"path":2936197592314449395,"deps":[["num_cpus v0.2.13","num_cpus",8246129739422172355]],"local":[{"Precalculated":"2.8.9"}],"rustflags":[],"edition":"Edition2015"}

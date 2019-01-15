@@ -32,10 +32,8 @@ fn filter(
         out.set_sample_rate(encoder.rate());
     }
 
-    filter.output("in", 0)?.input("out", 0)?.parse(spec)?;
+    filter.output("in", 0)?.input("out", 0)?.parse("anull")?;
     filter.validate()?;
-
-    println!("{}", filter.dump());
 
     if let Some(codec) = encoder.codec() {
         if !codec
@@ -140,10 +138,11 @@ fn main() {
     let filter = env::args().nth(3).unwrap_or_else(|| "anull".to_owned());
     let seek = env::args().nth(4).and_then(|s| s.parse::<i64>().ok());
 
+    // Try to guess formats based on the input and output names
     let mut ictx = format::input(&input).unwrap();
     let mut octx = format::output(&output).unwrap();
 
-    let mut octx2 = format::
+    // Create a transcoder based on the input context, the output context, any filters, and the outptu path.
     let mut transcoder = transcoder(&mut ictx, &mut octx, &output, &filter).unwrap();
 
     if let Some(position) = seek {
