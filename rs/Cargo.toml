@@ -1,0 +1,8 @@
+[package]
+name = "rs"
+version = "0.1.0"
+authors = ["Adam Harries <adam.harries@codeplay.com>"]
+edition = "2018"
+
+[dependencies]
+ffmpeg = {git = "https://github.com/meh/rust-ffmpeg.git"}

@@ -1,0 +1,1 @@
+{"rustc":8037878420184442906,"features":"[\"avcodec\", \"avdevice\", \"avfilter\", \"avformat\", \"avresample\", \"postproc\", \"swresample\", \"swscale\"]","target":16707972213396941601,"profile":11870183705523825133,"path":8928211773699025904,"deps":[["libc v0.2.47","libc",2563502427994679869]],"local":[{"Precalculated":"2.8.9"}],"rustflags":[],"edition":"Edition2015"}
