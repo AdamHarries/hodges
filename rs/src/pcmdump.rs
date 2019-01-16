@@ -7,7 +7,6 @@ use ffmpeg::{codec, filter, format, frame, media};
 use ffmpeg::{rescale, Rescale};
 
 fn filter(
-    spec: &str,
     decoder: &codec::decoder::Audio,
     encoder: &codec::encoder::Audio,
 ) -> Result<filter::Graph, ffmpeg::Error> {
@@ -58,39 +57,42 @@ struct Transcoder {
     encoder: codec::encoder::Audio,
 }
 
-fn transcoder<P: AsRef<Path>>(
+fn transcoder(
     ictx: &mut format::context::Input,
-    octx: &mut format::context::Output,
-    path: &P,
-    filter_spec: &str,
+    codecid: ffmpeg::codec::Id,
 ) -> Result<Transcoder, ffmpeg::Error> {
+    // Work out input context information, and a decoder
     let input = ictx
         .streams()
         .best(media::Type::Audio)
         .expect("could not find best audio stream");
     let mut decoder = input.codec().decoder().audio()?;
-    let codec: ffmpeg::codec::Audio =
-        ffmpeg::encoder::find(octx.format().codec(path, media::Type::Audio))
-            .expect("failed to find encoder")
-            .audio()?;
-    let global = octx
-        .format()
-        .flags()
-        .contains(ffmpeg::format::flag::GLOBAL_HEADER);
+
+    // Decide on a specific PCM codec.
+    let codec: ffmpeg::codec::Audio = ffmpeg::codec::decoder::find(codecid)
+        .expect("failed to find encoder")
+        .audio()?;
+
+    // let global = octx
+    //     .format()
+    //     .flags()
+    //     .contains(ffmpeg::format::flag::GLOBAL_HEADER);
 
     decoder.set_parameters(input.parameters())?;
 
-    let mut output = octx.add_stream(codec)?;
-    let mut encoder = output.codec().encoder().audio()?;
+    // let mut octx = format::context::Context::Output.output();
+    // let mut output = octx.add_stream(codec)?;
+    // let mut encoder = output.codec().encoder().audio()?;
+    let mut encoder = codec::Context::new().encoder().audio()?;
 
     let channel_layout = codec
         .channel_layouts()
         .map(|cls| cls.best(decoder.channel_layout().channels()))
         .unwrap_or(ffmpeg::channel_layout::STEREO);
 
-    if global {
-        encoder.set_flags(ffmpeg::codec::flag::GLOBAL_HEADER);
-    }
+    // if global {
+    //     encoder.set_flags(ffmpeg::codec::flag::GLOBAL_HEADER);
+    // }
 
     encoder.set_rate(decoder.rate() as i32);
     encoder.set_channel_layout(channel_layout);
@@ -106,12 +108,12 @@ fn transcoder<P: AsRef<Path>>(
     encoder.set_max_bit_rate(decoder.max_bit_rate());
 
     encoder.set_time_base((1, decoder.rate() as i32));
-    output.set_time_base((1, decoder.rate() as i32));
+    // output.set_time_base((1, decoder.rate() as i32));
 
     let encoder = encoder.open_as(codec)?;
-    output.set_parameters(&encoder);
+    // output.set_parameters(&encoder);
 
-    let filter = filter(filter_spec, &decoder, &encoder)?;
+    let filter = filter(&decoder, &encoder)?;
 
     Ok(Transcoder {
         stream: input.index(),
@@ -137,32 +139,31 @@ fn main() {
 
     // read arguments to the transcoder
     let input = env::args().nth(1).expect("missing input");
-    let output = env::args().nth(2).expect("missing output");
-    let filter = env::args().nth(3).unwrap_or_else(|| "anull".to_owned());
-    let seek = env::args().nth(4).and_then(|s| s.parse::<i64>().ok());
+    // let output = env::args().nth(2).expect("missing output");
+    // let seek = env::args().nth(2).and_then(|s| s.parse::<i64>().ok());
 
     // Try to guess formats based on the input and output names
     let mut ictx = format::input(&input).unwrap();
-    let mut octx = format::output(&output).unwrap();
+    // let mut octx = format::output(&output).unwrap();
 
     // let octxM : codec::encoder::Audio =
 
     // Create a transcoder based on the input context, the output context, any filters, and the outptu path.
-    let mut transcoder = transcoder(&mut ictx, &mut octx, &output, &filter).unwrap();
+    let mut transcoder = transcoder(&mut ictx, ffmpeg::codec::Id::PCM_F32LE).unwrap();
 
-    if let Some(position) = seek {
-        // If the position was given in seconds, rescale it to ffmpegs base timebase.
-        let position = position.rescale((1, 1), rescale::TIME_BASE);
-        // If this seek was embedded in the transcoding loop, a call of `flush()`
-        // for every opened buffer after the successful seek would be advisable.
-        ictx.seek(position, ..position).unwrap();
-    }
+    // if let Some(position) = seek {
+    //     // If the position was given in seconds, rescale it to ffmpegs base timebase.
+    //     let position = position.rescale((1, 1), rescale::TIME_BASE);
+    //     // If this seek was embedded in the transcoding loop, a call of `flush()`
+    //     // for every opened buffer after the successful seek would be advisable.
+    //     ictx.seek(position, ..position).unwrap();
+    // }
 
-    octx.set_metadata(ictx.metadata().to_owned());
-    octx.write_header().unwrap();
+    // octx.set_metadata(ictx.metadata().to_owned());
+    // octx.write_header().unwrap();
 
     let in_time_base = transcoder.decoder.time_base();
-    let out_time_base = octx.stream(0).unwrap().time_base();
+    // let out_time_base = octx.stream(0).unwrap().time_base();
 
     let mut decoded = frame::Audio::empty();
     let mut encoded = ffmpeg::Packet::empty();
@@ -192,8 +193,8 @@ fn main() {
                 {
                     if let Ok(true) = transcoder.encoder.encode(&decoded, &mut encoded) {
                         encoded.set_stream(0);
-                        encoded.rescale_ts(in_time_base, out_time_base);
-                        encoded.write_interleaved(&mut octx).unwrap();
+                        // encoded.rescale_ts(in_time_base, out_time_base);
+                        // encoded.write_interleaved(&mut octx).unwrap();
                     }
                 }
             }
@@ -217,16 +218,16 @@ fn main() {
     {
         if let Ok(true) = transcoder.encoder.encode(&decoded, &mut encoded) {
             encoded.set_stream(0);
-            encoded.rescale_ts(in_time_base, out_time_base);
-            encoded.write_interleaved(&mut octx).unwrap();
+            // encoded.rescale_ts(in_time_base, out_time_base);
+            // encoded.write_interleaved(&mut octx).unwrap();
         }
     }
 
     if let Ok(true) = transcoder.encoder.flush(&mut encoded) {
         encoded.set_stream(0);
-        encoded.rescale_ts(in_time_base, out_time_base);
-        encoded.write_interleaved(&mut octx).unwrap();
+        // encoded.rescale_ts(in_time_base, out_time_base);
+        // encoded.write_interleaved(&mut octx).unwrap();
     }
 
-    octx.write_trailer().unwrap();
+    // octx.write_trailer().unwrap();
 }
