@@ -1,2 +1,5 @@
 *.mp3
-pcmdump
+cimpl/pcmdump
+/target
+/experimental/target
+**/*.rs.bk

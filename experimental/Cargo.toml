@@ -1,0 +1,12 @@
+[package]
+name = "experimental"
+version = "0.1.0"
+authors = ["Adam Harries <adam.harries@codeplay.com>"]
+edition = "2018"
+
+[[bin]]
+name = "spect"
+path = "src/spect.rs"
+
+[dependencies]
+stft = "0.2.0"

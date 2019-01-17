@@ -269,7 +269,11 @@ int main(int argc, char** argv) {
               break;
             if (ret < 0)
               goto end;
+
+            // Actually print a frame!
             print_frame(filt_frame);
+
+            ///
             av_frame_unref(filt_frame);
           }
           av_frame_unref(frame);
