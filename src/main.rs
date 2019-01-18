@@ -10,8 +10,6 @@ fn main() {
     let buffer = reference::read_audio(filename);
 
     for value in buffer {
-        println!("Value: {:?}", value);
+        dbg!(value);
     }
-
-    println!("Hello, world!");
 }

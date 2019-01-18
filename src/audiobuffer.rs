@@ -35,11 +35,11 @@ impl AudioBuffer {
                             Ok(_) => {
                                 final_vec.extend_from_slice(&f32buffer[..bytes / 4]);
                             }
-                            Err(e) => println!("Encountered convert error {:?}", e),
+                            Err(e) => panic!("Encountered convert error {:?}", e),
                         }
                     }
                 }
-                Err(error) => println!("Encountered read error: {:?}", error),
+                Err(error) => panic!("Encountered read error: {:?}", error),
             }
         }
         AudioBuffer {
