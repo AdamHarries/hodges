@@ -38,9 +38,13 @@ typedef struct {
   AVFilterContext* buffersrc_ctx;
   AVFilterGraph* filter_graph;
   int audio_stream_index;
-} PgState;
 
-PgState* state;
+  // decoding state
+  AVPacket packet;
+  AVFrame* frame;
+  AVFrame* filt_frame;
+
+} PgState;
 
 static int open_input_file(const char* filename, PgState* state) {
   int ret;
@@ -223,17 +227,23 @@ static void print_frame(const AVFrame* frame) {
   fflush(stdout);
 }
 
-int main(int argc, char** argv) {
-  state = (PgState*)calloc(1, sizeof(PgState));
-  int ret;
-  AVPacket packet;
-  AVFrame* frame = av_frame_alloc();
-  AVFrame* filt_frame = av_frame_alloc();
+PgState* init_state() {
+  PgState* state = (PgState*)calloc(1, sizeof(PgState));
 
-  if (!frame || !filt_frame) {
+  state->frame = av_frame_alloc();
+  state->filt_frame = av_frame_alloc();
+
+  if (!state->frame || !state->filt_frame) {
     perror("Could not allocate frame");
     exit(1);
   }
+  return state;
+}
+
+int main(int argc, char** argv) {
+  PgState* state = init_state();
+  int ret;
+
   if (argc != 2) {
     fprintf(stderr, "Usage: %s file | %s\n", argv[0], player);
     exit(1);
@@ -242,18 +252,18 @@ int main(int argc, char** argv) {
   av_register_all();
   avfilter_register_all();
 
-  if ((ret = open_input_file(argv[1]), state) < 0)
+  if ((ret = open_input_file(argv[1], state)) < 0)
     goto end;
-  if ((ret = init_filters(filter_descr), state) < 0)
+  if ((ret = init_filters(filter_descr, state)) < 0)
     goto end;
 
   /* read all packets */
   while (1) {
-    if ((ret = av_read_frame(state->fmt_ctx, &packet)) < 0)
+    if ((ret = av_read_frame(state->fmt_ctx, &(state->packet))) < 0)
       break;
 
-    if (packet.stream_index == state->audio_stream_index) {
-      ret = avcodec_send_packet(state->dec_ctx, &packet);
+    if (state->packet.stream_index == state->audio_stream_index) {
+      ret = avcodec_send_packet(state->dec_ctx, &(state->packet));
       if (ret < 0) {
         av_log(NULL, AV_LOG_ERROR,
                "Error while sending a packet to the decoder\n");
@@ -261,7 +271,7 @@ int main(int argc, char** argv) {
       }
 
       while (ret >= 0) {
-        ret = avcodec_receive_frame(state->dec_ctx, frame);
+        ret = avcodec_receive_frame(state->dec_ctx, state->frame);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
           break;
         } else if (ret < 0) {
@@ -272,7 +282,7 @@ int main(int argc, char** argv) {
 
         if (ret >= 0) {
           /* push the audio data from decoded frame into the filtergraph */
-          if (av_buffersrc_add_frame_flags(state->buffersrc_ctx, frame,
+          if (av_buffersrc_add_frame_flags(state->buffersrc_ctx, state->frame,
                                            AV_BUFFERSRC_FLAG_KEEP_REF) < 0) {
             av_log(NULL, AV_LOG_ERROR,
                    "Error while feeding the audio filtergraph\n");
@@ -281,35 +291,38 @@ int main(int argc, char** argv) {
 
           /* pull filtered audio from the filtergraph */
           while (1) {
-            ret = av_buffersink_get_frame(state->buffersink_ctx, filt_frame);
+            ret = av_buffersink_get_frame(state->buffersink_ctx,
+                                          state->filt_frame);
             if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
               break;
             if (ret < 0)
               goto end;
 
             // Actually print a frame!
-            print_frame(filt_frame);
+            print_frame(state->filt_frame);
 
             ///
-            av_frame_unref(filt_frame);
+            av_frame_unref(state->filt_frame);
           }
-          av_frame_unref(frame);
+          av_frame_unref(state->frame);
         }
       }
     }
-    av_packet_unref(&packet);
+    av_packet_unref(&(state->packet));
   }
 end:
   avfilter_graph_free(&state->filter_graph);
   avcodec_free_context(&state->dec_ctx);
   avformat_close_input(&state->fmt_ctx);
-  av_frame_free(&frame);
-  av_frame_free(&filt_frame);
+  av_frame_free(&state->frame);
+  av_frame_free(&state->filt_frame);
 
   if (ret < 0 && ret != AVERROR_EOF) {
     fprintf(stderr, "Error occurred: %s\n", av_err2str(ret));
     exit(1);
   }
+
+  free(state);
 
   exit(0);
 }
