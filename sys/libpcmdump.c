@@ -42,7 +42,7 @@ typedef struct {
 
 PgState* state;
 
-static int open_input_file(const char* filename) {
+static int open_input_file(const char* filename, PgState* state) {
   int ret;
   AVCodec* dec;
 
@@ -84,7 +84,7 @@ static int open_input_file(const char* filename) {
   return 0;
 }
 
-static int init_filters(const char* filters_descr) {
+static int init_filters(const char* filters_descr, PgState* state) {
   char args[512];
   int ret = 0;
   AVFilter* abuffersrc = avfilter_get_by_name("abuffer");
@@ -242,9 +242,9 @@ int main(int argc, char** argv) {
   av_register_all();
   avfilter_register_all();
 
-  if ((ret = open_input_file(argv[1])) < 0)
+  if ((ret = open_input_file(argv[1]), state) < 0)
     goto end;
-  if ((ret = init_filters(filter_descr)) < 0)
+  if ((ret = init_filters(filter_descr), state) < 0)
     goto end;
 
   /* read all packets */
