@@ -11,10 +11,13 @@ CFLAGS += -O3
 CFLAGS := $(shell pkg-config --cflags $(FFMPEG_LIBS)) $(CFLAGS)
 LDLIBS := $(shell pkg-config --libs $(FFMPEG_LIBS)) $(LDLIBS)
 
-all: libpcmdump
+all: pcmdump
 
-libpcmdump: libpcmdump.c
-	$(CC) $(CFLAGS) $(LDLIBS) -o libpcmdump libpcmdump.c
+pcmdump: libpcmdump.c # pcmdump.o libpcmdump.o
+	$(CC) $(CFLAGS) $(LDLIBS) -o pcmdump libpcmdump.c # libpcmdump.o
+
+libpcmdump.o: libpcmdump.c
+	$(CC) $(CFLAGS) $(LDLIBS) -c libpcmdump.c
 
 clean:
-	rm -f libpcmdump
+	rm -f pcmdump

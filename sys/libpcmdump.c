@@ -24,12 +24,12 @@ static const char* filter_descr =
     "aresample=44100,aformat=sample_fmts=flt:channel_layouts=mono";
 static const char* player = "ffplay -f f32le -ar 44100 -ac 1 -";
 
-// static AVFormatContext* state.fmt_ctx;
-// static AVCodecContext* state.dec_ctx;
-// AVFilterContext* state.buffersink_ctx;
-// AVFilterContext* state.buffersrc_ctx;
-// AVFilterGraph* state.filter_graph;
-// static int state.audio_stream_index = -1;
+// static AVFormatContext* state->fmt_ctx;
+// static AVCodecContext* state->dec_ctx;
+// AVFilterContext* state->buffersink_ctx;
+// AVFilterContext* state->buffersrc_ctx;
+// AVFilterGraph* state->filter_graph;
+// static int state->audio_stream_index = -1;
 
 typedef struct {
   AVFormatContext* fmt_ctx;
@@ -40,42 +40,43 @@ typedef struct {
   int audio_stream_index;
 } PgState;
 
-static PgState state;
+PgState* state;
 
 static int open_input_file(const char* filename) {
   int ret;
   AVCodec* dec;
 
-  if ((ret = avformat_open_input(&state.fmt_ctx, filename, NULL, NULL)) < 0) {
+  if ((ret = avformat_open_input(&state->fmt_ctx, filename, NULL, NULL)) < 0) {
     av_log(NULL, AV_LOG_ERROR, "Cannot open input file\n");
     return ret;
   }
 
-  if ((ret = avformat_find_stream_info(state.fmt_ctx, NULL)) < 0) {
+  if ((ret = avformat_find_stream_info(state->fmt_ctx, NULL)) < 0) {
     av_log(NULL, AV_LOG_ERROR, "Cannot find stream information\n");
     return ret;
   }
 
   /* select the audio stream */
-  ret = av_find_best_stream(state.fmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &dec, 0);
+  ret =
+      av_find_best_stream(state->fmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &dec, 0);
   if (ret < 0) {
     av_log(NULL, AV_LOG_ERROR,
            "Cannot find an audio stream in the input file\n");
     return ret;
   }
-  state.audio_stream_index = ret;
+  state->audio_stream_index = ret;
 
   /* create decoding context */
-  state.dec_ctx = avcodec_alloc_context3(dec);
-  if (!state.dec_ctx)
+  state->dec_ctx = avcodec_alloc_context3(dec);
+  if (!state->dec_ctx)
     return AVERROR(ENOMEM);
   avcodec_parameters_to_context(
-      state.dec_ctx,
-      state.fmt_ctx->streams[state.audio_stream_index]->codecpar);
-  av_opt_set_int(state.dec_ctx, "refcounted_frames", 1, 0);
+      state->dec_ctx,
+      state->fmt_ctx->streams[state->audio_stream_index]->codecpar);
+  av_opt_set_int(state->dec_ctx, "refcounted_frames", 1, 0);
 
   /* init the audio decoder */
-  if ((ret = avcodec_open2(state.dec_ctx, dec, NULL)) < 0) {
+  if ((ret = avcodec_open2(state->dec_ctx, dec, NULL)) < 0) {
     av_log(NULL, AV_LOG_ERROR, "Cannot open audio decoder\n");
     return ret;
   }
@@ -95,55 +96,55 @@ static int init_filters(const char* filters_descr) {
   static const int out_sample_rates[] = {44100, -1};
   const AVFilterLink* outlink;
   AVRational time_base =
-      state.fmt_ctx->streams[state.audio_stream_index]->time_base;
+      state->fmt_ctx->streams[state->audio_stream_index]->time_base;
 
-  state.filter_graph = avfilter_graph_alloc();
-  if (!outputs || !inputs || !state.filter_graph) {
+  state->filter_graph = avfilter_graph_alloc();
+  if (!outputs || !inputs || !state->filter_graph) {
     ret = AVERROR(ENOMEM);
     goto end;
   }
 
   /* buffer audio source: the decoded frames from the decoder will be inserted
    * here. */
-  if (!state.dec_ctx->channel_layout)
-    state.dec_ctx->channel_layout =
-        av_get_default_channel_layout(state.dec_ctx->channels);
+  if (!state->dec_ctx->channel_layout)
+    state->dec_ctx->channel_layout =
+        av_get_default_channel_layout(state->dec_ctx->channels);
   snprintf(
       args, sizeof(args),
       "time_base=%d/%d:sample_rate=%d:sample_fmt=%s:channel_layout=0x%" PRIx64,
-      time_base.num, time_base.den, state.dec_ctx->sample_rate,
-      av_get_sample_fmt_name(state.dec_ctx->sample_fmt),
-      state.dec_ctx->channel_layout);
-  ret = avfilter_graph_create_filter(&state.buffersrc_ctx, abuffersrc, "in",
-                                     args, NULL, state.filter_graph);
+      time_base.num, time_base.den, state->dec_ctx->sample_rate,
+      av_get_sample_fmt_name(state->dec_ctx->sample_fmt),
+      state->dec_ctx->channel_layout);
+  ret = avfilter_graph_create_filter(&state->buffersrc_ctx, abuffersrc, "in",
+                                     args, NULL, state->filter_graph);
   if (ret < 0) {
     av_log(NULL, AV_LOG_ERROR, "Cannot create audio buffer source\n");
     goto end;
   }
 
   /* buffer audio sink: to terminate the filter chain. */
-  ret = avfilter_graph_create_filter(&state.buffersink_ctx, abuffersink, "out",
-                                     NULL, NULL, state.filter_graph);
+  ret = avfilter_graph_create_filter(&state->buffersink_ctx, abuffersink, "out",
+                                     NULL, NULL, state->filter_graph);
   if (ret < 0) {
     av_log(NULL, AV_LOG_ERROR, "Cannot create audio buffer sink\n");
     goto end;
   }
 
-  ret = av_opt_set_int_list(state.buffersink_ctx, "sample_fmts",
+  ret = av_opt_set_int_list(state->buffersink_ctx, "sample_fmts",
                             out_sample_fmts, -1, AV_OPT_SEARCH_CHILDREN);
   if (ret < 0) {
     av_log(NULL, AV_LOG_ERROR, "Cannot set output sample format\n");
     goto end;
   }
 
-  ret = av_opt_set_int_list(state.buffersink_ctx, "channel_layouts",
+  ret = av_opt_set_int_list(state->buffersink_ctx, "channel_layouts",
                             out_channel_layouts, -1, AV_OPT_SEARCH_CHILDREN);
   if (ret < 0) {
     av_log(NULL, AV_LOG_ERROR, "Cannot set output channel layout\n");
     goto end;
   }
 
-  ret = av_opt_set_int_list(state.buffersink_ctx, "sample_rates",
+  ret = av_opt_set_int_list(state->buffersink_ctx, "sample_rates",
                             out_sample_rates, -1, AV_OPT_SEARCH_CHILDREN);
   if (ret < 0) {
     av_log(NULL, AV_LOG_ERROR, "Cannot set output sample rate\n");
@@ -151,7 +152,7 @@ static int init_filters(const char* filters_descr) {
   }
 
   /*
-   * Set the endpoints for the filter graph. The state.filter_graph will
+   * Set the endpoints for the filter graph. The state->filter_graph will
    * be linked to the graph described by filters_descr.
    */
 
@@ -162,7 +163,7 @@ static int init_filters(const char* filters_descr) {
    * default.
    */
   outputs->name = av_strdup("in");
-  outputs->filter_ctx = state.buffersrc_ctx;
+  outputs->filter_ctx = state->buffersrc_ctx;
   outputs->pad_idx = 0;
   outputs->next = NULL;
 
@@ -173,20 +174,20 @@ static int init_filters(const char* filters_descr) {
    * default.
    */
   inputs->name = av_strdup("out");
-  inputs->filter_ctx = state.buffersink_ctx;
+  inputs->filter_ctx = state->buffersink_ctx;
   inputs->pad_idx = 0;
   inputs->next = NULL;
 
-  if ((ret = avfilter_graph_parse_ptr(state.filter_graph, filters_descr,
+  if ((ret = avfilter_graph_parse_ptr(state->filter_graph, filters_descr,
                                       &inputs, &outputs, NULL)) < 0)
     goto end;
 
-  if ((ret = avfilter_graph_config(state.filter_graph, NULL)) < 0)
+  if ((ret = avfilter_graph_config(state->filter_graph, NULL)) < 0)
     goto end;
 
   /* Print summary of the sink buffer
    * Note: args buffer is reused to store channel layout string */
-  outlink = state.buffersink_ctx->inputs[0];
+  outlink = state->buffersink_ctx->inputs[0];
   av_get_channel_layout_string(args, sizeof(args), -1, outlink->channel_layout);
   //   av_log(NULL, AV_LOG_INFO, "Output: srate:%dHz fmt:%s chlayout:%s\n",
   //          (int)outlink->sample_rate,
@@ -223,6 +224,7 @@ static void print_frame(const AVFrame* frame) {
 }
 
 int main(int argc, char** argv) {
+  state = (PgState*)calloc(1, sizeof(PgState));
   int ret;
   AVPacket packet;
   AVFrame* frame = av_frame_alloc();
@@ -247,11 +249,11 @@ int main(int argc, char** argv) {
 
   /* read all packets */
   while (1) {
-    if ((ret = av_read_frame(state.fmt_ctx, &packet)) < 0)
+    if ((ret = av_read_frame(state->fmt_ctx, &packet)) < 0)
       break;
 
-    if (packet.stream_index == state.audio_stream_index) {
-      ret = avcodec_send_packet(state.dec_ctx, &packet);
+    if (packet.stream_index == state->audio_stream_index) {
+      ret = avcodec_send_packet(state->dec_ctx, &packet);
       if (ret < 0) {
         av_log(NULL, AV_LOG_ERROR,
                "Error while sending a packet to the decoder\n");
@@ -259,7 +261,7 @@ int main(int argc, char** argv) {
       }
 
       while (ret >= 0) {
-        ret = avcodec_receive_frame(state.dec_ctx, frame);
+        ret = avcodec_receive_frame(state->dec_ctx, frame);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
           break;
         } else if (ret < 0) {
@@ -270,7 +272,7 @@ int main(int argc, char** argv) {
 
         if (ret >= 0) {
           /* push the audio data from decoded frame into the filtergraph */
-          if (av_buffersrc_add_frame_flags(state.buffersrc_ctx, frame,
+          if (av_buffersrc_add_frame_flags(state->buffersrc_ctx, frame,
                                            AV_BUFFERSRC_FLAG_KEEP_REF) < 0) {
             av_log(NULL, AV_LOG_ERROR,
                    "Error while feeding the audio filtergraph\n");
@@ -279,7 +281,7 @@ int main(int argc, char** argv) {
 
           /* pull filtered audio from the filtergraph */
           while (1) {
-            ret = av_buffersink_get_frame(state.buffersink_ctx, filt_frame);
+            ret = av_buffersink_get_frame(state->buffersink_ctx, filt_frame);
             if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
               break;
             if (ret < 0)
@@ -298,9 +300,9 @@ int main(int argc, char** argv) {
     av_packet_unref(&packet);
   }
 end:
-  avfilter_graph_free(&state.filter_graph);
-  avcodec_free_context(&state.dec_ctx);
-  avformat_close_input(&state.fmt_ctx);
+  avfilter_graph_free(&state->filter_graph);
+  avcodec_free_context(&state->dec_ctx);
+  avformat_close_input(&state->fmt_ctx);
   av_frame_free(&frame);
   av_frame_free(&filt_frame);
 
