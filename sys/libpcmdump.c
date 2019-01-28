@@ -28,7 +28,7 @@
 // static int state->audio_stream_index = -1;
 
 typedef float output_t;
-enum YieldState { Fresh, DataAvailable, Finished };
+enum YieldState { DataAvailable, Finished, FinishedWithError };
 
 typedef struct {
   // Overall status
@@ -46,6 +46,15 @@ typedef struct {
   AVPacket packet;
   AVFrame* frame;
   AVFrame* filt_frame;
+
+  // Read frame loop state
+  enum YieldState read_frame;
+
+  // Recieve frame loop state
+  enum YieldState recieve_frame;
+
+  // Get frame loop state
+  enum YieldState get_frame;
 
   // char decoding state
   enum YieldState frame_yield_state;
@@ -215,7 +224,7 @@ end:
   return ret;
 }
 
-char yield_char(/*const AVFrame* frame, */ PgState* state) {
+char yield_char(PgState* state) {
   // Check to see if our frame yielding is finished
   // If it has, we've been given a new frame, so we should reset our state.
   if (state->frame_yield_state == Finished) {
@@ -273,6 +282,9 @@ PgState* init_state(const char* filename) {
   state->frame = av_frame_alloc();
   state->filt_frame = av_frame_alloc();
   state->frame_yield_state = Finished;
+  state->read_frame = Finished;
+  state->recieve_frame = Finished;
+  state->get_frame = Finished;
 
   if (!state->frame || !state->filt_frame) {
     perror("Could not allocate frame");
@@ -307,64 +319,70 @@ int main(int argc, char** argv) {
   PgState* state = init_state(argv[1]);
 
   /* read all packets */
-  while (1) {
-    if ((state->ret = av_read_frame(state->fmt_ctx, &(state->packet))) < 0)
-      break;
+  do {
+    if ((state->ret = av_read_frame(state->fmt_ctx, &(state->packet))) < 0) {
+      state->read_frame = Finished;
+    } else {
+      if (state->packet.stream_index == state->audio_stream_index) {
+        state->ret = avcodec_send_packet(state->dec_ctx, &(state->packet));
 
-    if (state->packet.stream_index == state->audio_stream_index) {
-      state->ret = avcodec_send_packet(state->dec_ctx, &(state->packet));
-      if (state->ret < 0) {
-        av_log(NULL, AV_LOG_ERROR,
-               "Error while sending a packet to the decoder\n");
-        break;
-      }
-
-      while (state->ret >= 0) {
-        state->ret = avcodec_receive_frame(state->dec_ctx, state->frame);
-        if (state->ret == AVERROR(EAGAIN) || state->ret == AVERROR_EOF) {
-          break;
-        } else if (state->ret < 0) {
+        if (state->ret < 0) {
           av_log(NULL, AV_LOG_ERROR,
-                 "Error while receiving a frame from the decoder\n");
-          cleanup(state);
-        }
+                 "Error while sending a packet to the decoder\n");
+          // cleanup(state);
+          state->read_frame = FinishedWithError;
+        } else {
+          state->read_frame = DataAvailable;
 
-        if (state->ret >= 0) {
-          /* push the audio data from decoded frame into the filtergraph */
-          if (av_buffersrc_add_frame_flags(state->buffersrc_ctx, state->frame,
-                                           AV_BUFFERSRC_FLAG_KEEP_REF) < 0) {
-            av_log(NULL, AV_LOG_ERROR,
-                   "Error while feeding the audio filtergraph\n");
-            break;
-          }
-
-          /* pull filtered audio from the filtergraph */
-          while (1) {
-            state->ret = av_buffersink_get_frame(state->buffersink_ctx,
-                                                 state->filt_frame);
-            if (state->ret == AVERROR(EAGAIN) || state->ret == AVERROR_EOF)
+          while (state->ret >= 0) {
+            state->ret = avcodec_receive_frame(state->dec_ctx, state->frame);
+            if (state->ret == AVERROR(EAGAIN) || state->ret == AVERROR_EOF) {
               break;
-            if (state->ret < 0)
+            } else if (state->ret < 0) {
+              av_log(NULL, AV_LOG_ERROR,
+                     "Error while receiving a frame from the decoder\n");
               cleanup(state);
+            }
 
-            // Actually print a frame!
-            do {
-              char v = yield_char(state);
+            if (state->ret >= 0) {
+              /* push the audio data from decoded frame into the filtergraph */
+              if (av_buffersrc_add_frame_flags(
+                      state->buffersrc_ctx, state->frame,
+                      AV_BUFFERSRC_FLAG_KEEP_REF) < 0) {
+                av_log(NULL, AV_LOG_ERROR,
+                       "Error while feeding the audio filtergraph\n");
+                break;
+              }
 
-              fputc(v, stdout);
+              /* pull filtered audio from the filtergraph */
+              while (1) {
+                state->ret = av_buffersink_get_frame(state->buffersink_ctx,
+                                                     state->filt_frame);
+                if (state->ret == AVERROR(EAGAIN) || state->ret == AVERROR_EOF)
+                  break;
+                if (state->ret < 0)
+                  cleanup(state);
 
-            } while (state->frame_yield_state == DataAvailable);
-            fflush(stdout);
+                // Actually print a frame!
+                do {
+                  char v = yield_char(state);
 
-            ///
-            av_frame_unref(state->filt_frame);
+                  fputc(v, stdout);
+
+                } while (state->frame_yield_state == DataAvailable);
+                fflush(stdout);
+
+                ///
+                av_frame_unref(state->filt_frame);
+              }
+              av_frame_unref(state->frame);
+            }
           }
-          av_frame_unref(state->frame);
         }
       }
+      av_packet_unref(&(state->packet));
     }
-    av_packet_unref(&(state->packet));
-  }
+  } while (state->read_frame == DataAvailable);
 
   cleanup(state);
 }
