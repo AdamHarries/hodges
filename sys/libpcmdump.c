@@ -227,7 +227,25 @@ static void print_frame(const AVFrame* frame) {
   fflush(stdout);
 }
 
-PgState* init_state() {
+void cleanup(int ret, PgState* state) {
+  avfilter_graph_free(&state->filter_graph);
+  avcodec_free_context(&state->dec_ctx);
+  avformat_close_input(&state->fmt_ctx);
+  av_frame_free(&state->frame);
+  av_frame_free(&state->filt_frame);
+
+  if (ret < 0 && ret != AVERROR_EOF) {
+    fprintf(stderr, "Error occurred: %s\n", av_err2str(ret));
+    exit(1);
+  }
+
+  free(state);
+
+  exit(0);
+}
+
+PgState* init_state(const char* filename) {
+  int ret;
   PgState* state = (PgState*)calloc(1, sizeof(PgState));
 
   state->frame = av_frame_alloc();
@@ -237,11 +255,19 @@ PgState* init_state() {
     perror("Could not allocate frame");
     exit(1);
   }
+
+  av_register_all();
+  avfilter_register_all();
+
+  if ((ret = open_input_file(filename, state)) < 0)
+    cleanup(ret, state);
+  if ((ret = init_filters(filter_descr, state)) < 0)
+    cleanup(ret, state);
+
   return state;
 }
 
 int main(int argc, char** argv) {
-  PgState* state = init_state();
   int ret;
 
   if (argc != 2) {
@@ -249,13 +275,7 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  av_register_all();
-  avfilter_register_all();
-
-  if ((ret = open_input_file(argv[1], state)) < 0)
-    goto end;
-  if ((ret = init_filters(filter_descr, state)) < 0)
-    goto end;
+  PgState* state = init_state(argv[1]);
 
   /* read all packets */
   while (1) {
@@ -277,7 +297,7 @@ int main(int argc, char** argv) {
         } else if (ret < 0) {
           av_log(NULL, AV_LOG_ERROR,
                  "Error while receiving a frame from the decoder\n");
-          goto end;
+          cleanup(ret, state);
         }
 
         if (ret >= 0) {
@@ -296,7 +316,7 @@ int main(int argc, char** argv) {
             if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
               break;
             if (ret < 0)
-              goto end;
+              cleanup(ret, state);
 
             // Actually print a frame!
             print_frame(state->filt_frame);
@@ -310,19 +330,5 @@ int main(int argc, char** argv) {
     }
     av_packet_unref(&(state->packet));
   }
-end:
-  avfilter_graph_free(&state->filter_graph);
-  avcodec_free_context(&state->dec_ctx);
-  avformat_close_input(&state->fmt_ctx);
-  av_frame_free(&state->frame);
-  av_frame_free(&state->filt_frame);
-
-  if (ret < 0 && ret != AVERROR_EOF) {
-    fprintf(stderr, "Error occurred: %s\n", av_err2str(ret));
-    exit(1);
-  }
-
-  free(state);
-
-  exit(0);
+  cleanup(0, state);
 }
