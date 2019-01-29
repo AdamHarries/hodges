@@ -7,11 +7,11 @@ FFMPEG_LIBS=    libavdevice                        \
                 libswscale                         \
 				libavutil \
 
-CFLAGS += -O3
+CFLAGS += -g
 CFLAGS := $(shell pkg-config --cflags $(FFMPEG_LIBS)) $(CFLAGS)
 LDLIBS := $(shell pkg-config --libs $(FFMPEG_LIBS)) $(LDLIBS)
 
-all: pcmdump
+all: pcmdump Makefile
 
 pcmdump: libpcmdump.c # pcmdump.o libpcmdump.o
 	$(CC) $(CFLAGS) $(LDLIBS) -o pcmdump libpcmdump.c # libpcmdump.o
