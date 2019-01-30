@@ -1,3 +1,6 @@
+#ifndef LIBPCM_DUMP_H
+#define LIBPCM_DUMP_H
+
 #include <unistd.h>
 
 #include <libavcodec/avcodec.h>
@@ -25,6 +28,8 @@ enum YieldState { DataAvailable, Finished, FinishedWithError };
 
 // enum SourceState { DataAvailable, NeedMoreData };
 
+enum DataState { NeedsData, Saturated };
+
 enum ErrorState { ErrorReadingSinkFrame };
 
 typedef struct {
@@ -44,20 +49,18 @@ typedef struct {
   AVFrame* frame;
   AVFrame* filt_frame;
 
-  // Read frame loop state
-  enum YieldState read_frame;
+  char should_send_packet;
+  char should_recv_frame;
+  char should_pull_frame;
 
-  // Recieve frame loop state
-  enum YieldState recieve_frame;
+  // does the "recv_frame" section need more data
+  enum DataState recv_frame_state;
+  // Does the "pull_frame" section need more data?
+  enum DataState pull_state;
+  // Does the char decoder need more data?
+  enum DataState char_state;
 
-  // Get frame loop state
-  enum YieldState get_frame;
-
-  //   enum SourceState rf_state;
-
-  // char decoding state
-  //   enum SourceState cs_state;
-  enum YieldState char_yield_status;
+  // state for decoding chars
   int samples;
   output_t* arr_ix;
   output_t* arr_end;
@@ -66,3 +69,5 @@ typedef struct {
   // The latest value.
   char v;
 } PgState;
+
+#endif

@@ -13,7 +13,7 @@ LDLIBS := $(shell pkg-config --libs $(FFMPEG_LIBS)) $(LDLIBS)
 
 all: pcmdump Makefile
 
-pcmdump: libpcmdump.c # pcmdump.o libpcmdump.o
+pcmdump: libpcmdump.c libpcmdump.h ideas.h # pcmdump.o libpcmdump.o
 	$(CC) $(CFLAGS) $(LDLIBS) -o pcmdump libpcmdump.c # libpcmdump.o
 
 libpcmdump.o: libpcmdump.c

@@ -187,10 +187,6 @@ PgState* init_state(const char* filename) {
 
   state->frame = av_frame_alloc();
   state->filt_frame = av_frame_alloc();
-  state->char_yield_status = Finished;
-  state->read_frame = Finished;
-  state->recieve_frame = Finished;
-  state->get_frame = Finished;
 
   if (!state->frame || !state->filt_frame) {
     perror("Could not allocate frame");
@@ -212,6 +208,8 @@ PgState* init_state(const char* filename) {
   return state;
 }
 
+#include "ideas.h"
+
 int main(int argc, char** argv) {
   // int ret;
 
@@ -224,6 +222,8 @@ int main(int argc, char** argv) {
 
   PgState* state = init_state(argv[1]);
 
+  enum YieldState status;
+
   /* read all packets */
   do {
   /*
@@ -232,7 +232,7 @@ int main(int argc, char** argv) {
   send_packet:
     av_packet_unref(&(state->packet));
     if ((state->ret = av_read_frame(state->fmt_ctx, &(state->packet))) < 0) {
-      state->read_frame = Finished;
+      status = Finished;
     } else {
       if (state->packet.stream_index == state->audio_stream_index) {
         state->ret = avcodec_send_packet(state->dec_ctx, &(state->packet));
@@ -241,75 +241,47 @@ int main(int argc, char** argv) {
           av_log(NULL, AV_LOG_ERROR,
                  "Error while sending a packet to the decoder\n");
           // cleanup(state);
-          state->read_frame = FinishedWithError;
-        } else {
-          state->read_frame = DataAvailable;
-
-        recv_frame:
-          state->ret = avcodec_receive_frame(state->dec_ctx, state->frame);
-          if (state->ret == AVERROR(EAGAIN) || state->ret == AVERROR_EOF) {
-            goto send_packet;
-          } else if (state->ret < 0) {
-            av_log(NULL, AV_LOG_ERROR,
-                   "Error while receiving a frame from the decoder\n");
-            cleanup(state);
-          }
-
-          /* push the audio data from decoded frame into the filtergraph */
-          if (av_buffersrc_add_frame_flags(state->buffersrc_ctx, state->frame,
-                                           AV_BUFFERSRC_FLAG_KEEP_REF) < 0) {
-            av_log(NULL, AV_LOG_ERROR,
-                   "Error while feeding the audio filtergraph\n");
-            goto fail;
-          }
-
-          /* pull filtered audio from the filtergraph */
-          state->ret =
-              av_buffersink_get_frame(state->buffersink_ctx, state->filt_frame);
-
-          if (state->ret == AVERROR(EAGAIN) || state->ret == AVERROR_EOF)
-            goto recv_frame;
-          if (state->ret < 0)
-            cleanup(state);
-
-          state->samples = state->filt_frame->nb_samples *
-                           av_get_channel_layout_nb_channels(
-                               state->filt_frame->channel_layout);
-
-          state->arr_ix = (output_t*)state->filt_frame->data[0];
-          state->arr_end = state->arr_ix + state->samples;
-          state->i = 0;
-          state->char_yield_status = DataAvailable;
-
-          // Actually print a frame!
-          char r;
-
-        yield_char:
-
-          r = *((char*)state->arr_ix + (state->i));
-
-          state->i++;
-
-          if (!(state->i < sizeof(output_t))) {
-            state->i = 0;
-            state->arr_ix++;
-          }
-
-          fputc(r, stdout);
-
-          if (state->arr_ix < state->arr_end) {
-            goto yield_char;
-          }
-
-          fflush(stdout);
-
-          av_frame_unref(state->filt_frame);
-          av_frame_unref(state->frame);
-          goto recv_frame;
+          status = FinishedWithError;
+          break;
         }
       }
+
+    recv_frame:
+      status = recv_frame(state);
+      if (status == Finished || status == FinishedWithError) {
+        break;
+      }
+
+      /* pull filtered audio from the filtergraph */
+      status = pull_frame(state);
+      if (status == Finished || status == FinishedWithError) {
+        break;
+      }
+
+      // Actually print a frame!
+      char r;
+
+    yield_char:
+
+      r = *((char*)state->arr_ix + (state->i));
+
+      state->i++;
+
+      if (!(state->i < sizeof(output_t))) {
+        state->i = 0;
+        state->arr_ix++;
+      }
+
+      fputc(r, stdout);
+
+      if (state->arr_ix < state->arr_end) {
+        goto yield_char;
+      }
+
+      fflush(stdout);
+      goto recv_frame;
     }
-  } while (state->read_frame == DataAvailable);
+  } while (status == DataAvailable);
 
 fail:
   cleanup(state);
