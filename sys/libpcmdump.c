@@ -254,12 +254,16 @@ int main(int argc, char** argv) {
     //   }
 
     /* pull filtered audio from the filtergraph */
-    if (should_pull) {
+    // if (should_pull) {
+    //   should_pull = 0;
+    // }
+
+    if (!(state->arr_ix < state->arr_end)) {
       status = pull_frame(state);
       if (status == Finished || status == FinishedWithError) {
         break;
       }
-      should_pull = 0;
+      // goto yield_char;
     }
 
     // Actually print a frame!
@@ -277,11 +281,6 @@ int main(int argc, char** argv) {
     }
 
     fputc(r, stdout);
-
-    if (!(state->arr_ix < state->arr_end)) {
-      should_pull = 1;
-      // goto yield_char;
-    }
 
     fflush(stdout);
     // goto recv_frame;
