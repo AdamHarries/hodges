@@ -225,62 +225,67 @@ int main(int argc, char** argv) {
   enum YieldState status;
 
   /* read all packets */
+  int should_pull = 1;
   do {
   /*
     If we need a new frame, read one in.
    */
   send_packet:
-    av_packet_unref(&(state->packet));
-    if ((state->ret = av_read_frame(state->fmt_ctx, &(state->packet))) < 0) {
-      status = Finished;
-    } else {
-      if (state->packet.stream_index == state->audio_stream_index) {
-        state->ret = avcodec_send_packet(state->dec_ctx, &(state->packet));
+    // av_packet_unref(&(state->packet));
+    // if ((state->ret = av_read_frame(state->fmt_ctx, &(state->packet))) < 0) {
+    //   status = Finished;
+    // } else {
+    //   if (state->packet.stream_index == state->audio_stream_index) {
+    //     state->ret = avcodec_send_packet(state->dec_ctx, &(state->packet));
 
-        if (state->ret < 0) {
-          av_log(NULL, AV_LOG_ERROR,
-                 "Error while sending a packet to the decoder\n");
-          // cleanup(state);
-          status = FinishedWithError;
-          break;
-        }
-      }
+    //     if (state->ret < 0) {
+    //       av_log(NULL, AV_LOG_ERROR,
+    //              "Error while sending a packet to the decoder\n");
+    //       // cleanup(state);
+    //       status = FinishedWithError;
+    //       break;
+    //     }
+    //   }
 
-    recv_frame:
-      status = recv_frame(state);
-      if (status == Finished || status == FinishedWithError) {
-        break;
-      }
+    //   // recv_frame:
+    //   status = recv_frame(state);
+    //   if (status == Finished || status == FinishedWithError) {
+    //     break;
+    //   }
 
-      /* pull filtered audio from the filtergraph */
+    /* pull filtered audio from the filtergraph */
+    if (should_pull) {
       status = pull_frame(state);
       if (status == Finished || status == FinishedWithError) {
         break;
       }
-
-      // Actually print a frame!
-      char r;
-
-    yield_char:
-
-      r = *((char*)state->arr_ix + (state->i));
-
-      state->i++;
-
-      if (!(state->i < sizeof(output_t))) {
-        state->i = 0;
-        state->arr_ix++;
-      }
-
-      fputc(r, stdout);
-
-      if (state->arr_ix < state->arr_end) {
-        goto yield_char;
-      }
-
-      fflush(stdout);
-      goto recv_frame;
+      should_pull = 0;
     }
+
+    // Actually print a frame!
+    char r;
+
+    // yield_char:
+
+    r = *((char*)state->arr_ix + (state->i));
+
+    state->i++;
+
+    if (!(state->i < sizeof(output_t))) {
+      state->i = 0;
+      state->arr_ix++;
+    }
+
+    fputc(r, stdout);
+
+    if (!(state->arr_ix < state->arr_end)) {
+      should_pull = 1;
+      // goto yield_char;
+    }
+
+    fflush(stdout);
+    // goto recv_frame;
+
   } while (status == DataAvailable);
 
 fail:
