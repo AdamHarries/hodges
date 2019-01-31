@@ -16,23 +16,21 @@
 // - channels: 1
 // - rate: 44100
 
-// static AVFormatContext* state->fmt_ctx;
-// static AVCodecContext* state->dec_ctx;
-// AVFilterContext* state->buffersink_ctx;
-// AVFilterContext* state->buffersrc_ctx;
-// AVFilterGraph* state->filter_graph;
-// static int state->audio_stream_index = -1;
-
 typedef float output_t;
-enum YieldState { DataAvailable, Finished, FinishedWithError };
 
-// enum SourceState { DataAvailable, NeedMoreData };
-
-enum DataState { NeedsData, Saturated };
-
-enum ErrorState { ErrorReadingSinkFrame };
+enum YieldState {
+  DataAvailable,
+  Finished,
+  FinishedWithError,
+  DecoderSendError,
+  FrameRecieveError,
+  FiltergraphFeedError,
+  FiltergraphPullError
+};
 
 typedef struct {
+  // A generic return value for use by functions
+  int ret;
   // Overall status
   AVFormatContext* fmt_ctx;
   AVCodecContext* dec_ctx;
@@ -41,26 +39,12 @@ typedef struct {
   AVFilterGraph* filter_graph;
   int audio_stream_index;
 
-  // A generic return value for use by functions
-  int ret;
-
   // decoding state
   AVPacket packet;
   AVFrame* frame;
   AVFrame* filt_frame;
-
-  char should_send_packet;
-  char should_recv_frame;
-  char should_pull_frame;
-
-  // does the "recv_frame" section need more data
-  enum DataState recv_frame_state;
-  // Does the "pull_frame" section need more data?
-  enum DataState pull_state;
-  // Does the char decoder need more data?
-  enum DataState char_state;
-
-  // state for decoding chars
+  // char decoding state
+  // Note, these *must* be zero initialised (either with calloc, or manually)
   int samples;
   output_t* arr_ix;
   output_t* arr_end;
@@ -69,5 +53,23 @@ typedef struct {
   // The latest value.
   char v;
 } PgState;
+
+static int open_input_file(const char* filename, PgState* state);
+
+static int init_filters(const char* filters_descr, PgState* state);
+
+void cleanup(PgState* state);
+
+PgState* init_state(const char* filename);
+
+enum YieldState pcmdump_log_err(enum YieldState errcode);
+
+/* extern inline */ enum YieldState send_packet(PgState* state);
+
+/* extern inline */ enum YieldState recv_frame(PgState* state);
+
+/* extern inline */ enum YieldState pull_frame(PgState* state);
+
+/* extern inline */ enum YieldState get_sample(PgState* state);
 
 #endif
