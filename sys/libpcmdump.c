@@ -329,6 +329,7 @@ enum YieldState pcmdump_log_err(enum YieldState errcode) {
 }
 
 int main(int argc, char** argv) {
+  av_log_set_level(AV_LOG_FATAL);
   if (argc != 2) {
     static const char* player = "ffplay -f f32le -ar 44100 -ac 1 -";
 
