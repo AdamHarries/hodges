@@ -54,22 +54,10 @@ typedef struct {
   char v;
 } PgState;
 
-static int open_input_file(const char* filename, PgState* state);
-
-static int init_filters(const char* filters_descr, PgState* state);
-
 void cleanup(PgState* state);
 
 PgState* init_state(const char* filename);
 
-enum YieldState pcmdump_log_err(enum YieldState errcode);
-
-/* extern inline */ enum YieldState send_packet(PgState* state);
-
-/* extern inline */ enum YieldState recv_frame(PgState* state);
-
-/* extern inline */ enum YieldState pull_frame(PgState* state);
-
-/* extern inline */ enum YieldState get_sample(PgState* state);
+enum YieldState get_sample(PgState* state);
 
 #endif

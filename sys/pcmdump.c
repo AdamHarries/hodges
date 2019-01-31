@@ -8,14 +8,26 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
+  // small optimisation to make it faster to print to stdout
+  const int buffer_size = 65536;
+  static char buffer[buffer_size];
+  int ix = 0;
+
   PgState* state = init_state(argv[1]);
 
   enum YieldState status;
 
   status = get_sample(state);
   while (status == DataAvailable) {
-    fputc(state->v, stdout);
+    buffer[ix++] = state->v;
+    if (ix == buffer_size) {
+      fwrite(buffer, sizeof(char), buffer_size, stdout);
+      ix = 0;
+    }
     status = get_sample(state);
+  }
+  if (ix != 0) {
+    fwrite(buffer, sizeof(char), ix, stdout);
   }
 
   cleanup(state);

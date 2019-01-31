@@ -219,7 +219,7 @@ PgState* init_state(const char* filename) {
   return state;
 }
 
-enum YieldState pcmdump_log_err(enum YieldState errcode) {
+static enum YieldState pcmdump_log_err(enum YieldState errcode) {
 #ifdef DEBUG
   switch (errcode) {
     case DataAvailable:
@@ -254,7 +254,7 @@ enum YieldState pcmdump_log_err(enum YieldState errcode) {
   return errcode;
 }
 
-/* static inline*/ enum YieldState send_packet(PgState* state) {
+static /* inline*/ enum YieldState send_packet(PgState* state) {
   av_packet_unref(&(state->packet));
   if ((state->ret = av_read_frame(state->fmt_ctx, &(state->packet))) < 0) {
     return Finished;
@@ -269,7 +269,7 @@ enum YieldState pcmdump_log_err(enum YieldState errcode) {
   return DataAvailable;
 }
 
-/* static inline*/ enum YieldState recv_frame(PgState* state) {
+static /* inline*/ enum YieldState recv_frame(PgState* state) {
   av_frame_unref(state->frame);
   state->ret = avcodec_receive_frame(state->dec_ctx, state->frame);
 
@@ -289,7 +289,7 @@ enum YieldState pcmdump_log_err(enum YieldState errcode) {
   return DataAvailable;
 }
 
-/* static inline*/ enum YieldState pull_frame(PgState* state) {
+static /* inline*/ enum YieldState pull_frame(PgState* state) {
   av_frame_unref(state->filt_frame);
   /* pull filtered audio from the filtergraph */
   state->ret =
@@ -313,7 +313,7 @@ enum YieldState pcmdump_log_err(enum YieldState errcode) {
   return DataAvailable;
 }
 
-/* static inline*/ enum YieldState get_sample(PgState* state) {
+/* inline*/ enum YieldState get_sample(PgState* state) {
   if (!(state->arr_ix < state->arr_end)) {
     TRY_CALL(pull_frame(state));
   }

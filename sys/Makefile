@@ -20,4 +20,5 @@ libpcmdump.o: libpcmdump.c libpcmdump.h Makefile
 	$(CC) $(CFLAGS) -c libpcmdump.c
 
 clean:
+	rm -f libpcmdump.o
 	rm -f pcmdump
