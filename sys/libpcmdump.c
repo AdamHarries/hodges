@@ -188,6 +188,8 @@ void cleanup(PgState* state) {
 
 PgState* init_state(const char* filename) {
   int ret;
+
+  av_log_set_level(AV_LOG_FATAL);
   PgState* state = (PgState*)calloc(1, sizeof(PgState));
 
   state->frame = av_frame_alloc();
@@ -326,29 +328,4 @@ enum YieldState pcmdump_log_err(enum YieldState errcode) {
   }
 
   return DataAvailable;
-}
-
-int main(int argc, char** argv) {
-  av_log_set_level(AV_LOG_FATAL);
-  if (argc != 2) {
-    static const char* player = "ffplay -f f32le -ar 44100 -ac 1 -";
-
-    fprintf(stderr, "Usage: %s file | %s\n", argv[0], player);
-    exit(1);
-  }
-
-  PgState* state = init_state(argv[1]);
-
-  enum YieldState status;
-
-  status = get_sample(state);
-  while (status == DataAvailable) {
-    fputc(state->v, stdout);
-    status = get_sample(state);
-  }
-
-  // fflush(stdout);
-
-fail:
-  cleanup(state);
 }
