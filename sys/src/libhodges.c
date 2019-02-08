@@ -4,7 +4,43 @@
  * API example for audio decoding and filtering
  * @example filtering_audio.c
  */
-#include "libpcmdump.h"
+#include <unistd.h>
+
+#include <libavcodec/avcodec.h>
+#include <libavfilter/avfiltergraph.h>
+#include <libavfilter/buffersink.h>
+#include <libavfilter/buffersrc.h>
+#include <libavformat/avformat.h>
+#include <libavutil/opt.h>
+
+#include "libhodges.h"
+
+typedef struct {
+  // A generic return value for use by functions
+  int ret;
+  // Overall status
+  AVFormatContext* fmt_ctx;
+  AVCodecContext* dec_ctx;
+  AVFilterContext* buffersink_ctx;
+  AVFilterContext* buffersrc_ctx;
+  AVFilterGraph* filter_graph;
+  int audio_stream_index;
+
+  // decoding state
+  AVPacket packet;
+  AVFrame* frame;
+  AVFrame* filt_frame;
+  // char decoding state
+  // Note, these *must* be zero initialised (either with calloc, or manually)
+  int samples;
+  output_t* arr_ix;
+  output_t* arr_end;
+  int i;
+
+  // The latest value.
+  char v;
+  float f;
+} PgState;
 
 #define TRY_CALL(fcall)                   \
   enum YieldState try_call_status;        \
@@ -172,53 +208,6 @@ end:
   return ret;
 }
 
-void cleanup(PgState* state) {
-  avfilter_graph_free(&state->filter_graph);
-  avcodec_free_context(&state->dec_ctx);
-  avformat_close_input(&state->fmt_ctx);
-  av_frame_free(&state->frame);
-  av_frame_free(&state->filt_frame);
-
-  if (state->ret < 0 && state->ret != AVERROR_EOF) {
-    fprintf(stderr, "Error occurred: %s\n", av_err2str(state->ret));
-  }
-
-  free(state);
-}
-
-PgState* init_state(const char* filename) {
-  int ret;
-
-  av_log_set_level(AV_LOG_FATAL);
-  PgState* state = (PgState*)calloc(1, sizeof(PgState));
-
-  state->frame = av_frame_alloc();
-  state->filt_frame = av_frame_alloc();
-
-  if (!state->frame || !state->filt_frame) {
-    perror("Could not allocate frame");
-    return NULL;
-  }
-
-  av_register_all();
-  avfilter_register_all();
-
-  if ((state->ret = open_input_file(filename, state)) < 0) {
-    cleanup(state);
-    return NULL;
-  }
-
-  static const char* filter_descr =
-      "aresample=44100,aformat=sample_fmts=flt:channel_layouts=mono";
-
-  if ((state->ret = init_filters(filter_descr, state)) < 0) {
-    cleanup(state);
-    return NULL;
-  }
-
-  return state;
-}
-
 static enum YieldState pcmdump_log_err(enum YieldState errcode) {
 #ifdef DEBUG
   switch (errcode) {
@@ -313,7 +302,58 @@ static /* inline*/ enum YieldState pull_frame(PgState* state) {
   return DataAvailable;
 }
 
-/* inline*/ enum YieldState get_sample(PgState* state) {
+/* public interface */
+
+void* init_state(const char* filename) {
+  int ret;
+
+  av_log_set_level(AV_LOG_FATAL);
+  PgState* state = (PgState*)calloc(1, sizeof(PgState));
+
+  state->frame = av_frame_alloc();
+  state->filt_frame = av_frame_alloc();
+
+  if (!state->frame || !state->filt_frame) {
+    perror("Could not allocate frame");
+    return NULL;
+  }
+
+  av_register_all();
+  avfilter_register_all();
+
+  if ((state->ret = open_input_file(filename, state)) < 0) {
+    cleanup(state);
+    return NULL;
+  }
+
+  static const char* filter_descr =
+      "aresample=44100,aformat=sample_fmts=flt:channel_layouts=mono";
+
+  if ((state->ret = init_filters(filter_descr, state)) < 0) {
+    cleanup(state);
+    return NULL;
+  }
+
+  return (void*)state;
+}
+
+void cleanup(void* st) {
+  PgState* state = (PgState*)st;
+  avfilter_graph_free(&state->filter_graph);
+  avcodec_free_context(&state->dec_ctx);
+  avformat_close_input(&state->fmt_ctx);
+  av_frame_free(&state->frame);
+  av_frame_free(&state->filt_frame);
+
+  if (state->ret < 0 && state->ret != AVERROR_EOF) {
+    fprintf(stderr, "Error occurred: %s\n", av_err2str(state->ret));
+  }
+
+  free(state);
+}
+
+/* inline*/ enum YieldState advance_char_iterator(void* st) {
+  PgState* state = (PgState*)st;
   if (!(state->arr_ix < state->arr_end)) {
     TRY_CALL(pull_frame(state));
   }
@@ -328,4 +368,26 @@ static /* inline*/ enum YieldState pull_frame(PgState* state) {
   }
 
   return DataAvailable;
+}
+
+char get_char(void* st) {
+  PgState* state = (PgState*)st;
+  return state->v;
+}
+
+/* inline*/ enum YieldState advance_float_iterator(void* st) {
+  PgState* state = (PgState*)st;
+  if (!(state->arr_ix < state->arr_end)) {
+    TRY_CALL(pull_frame(state));
+  }
+
+  state->f = *state->arr_ix;
+  state->arr_ix++;
+
+  return DataAvailable;
+}
+
+float get_float(void* st) {
+  PgState* state = (PgState*)st;
+  return state->f;
 }

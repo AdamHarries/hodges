@@ -6,3 +6,9 @@ edition = "2018"
 
 [dependencies]
 byteorder = "1"
+libc = "0.2"
+log = "0.4"
+
+[build-dependencies]
+bindgen = "0.37.0"
+cmake = "0.1.31"
