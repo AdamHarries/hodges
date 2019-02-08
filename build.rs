@@ -16,7 +16,7 @@ fn main() {
         .build();
     // tell cargo to look for talamel, taglib, and zlib
     // Specifically, specify the paths.
-    // println!("cargo:rustc-link-search={}", dst.display());
+    println!("cargo:rustc-link-search={}", dst.display());
     // println!(
     //     "cargo:rustc-link-search={}/build/taglib/install/lib",
     //     dst.display()
@@ -29,7 +29,15 @@ fn main() {
     // // Link talamel, tag_c, tag, zlib, and the c++ runtime.
     // println!("cargo:rustc-link-lib=static=talamel");
     // println!("cargo:rustc-link-lib=static=tag_c");
-    // println!("cargo:rustc-link-lib=static=tag");
+
+    println!("cargo:rustc-link-lib=avdevice");
+    println!("cargo:rustc-link-lib=avformat");
+    println!("cargo:rustc-link-lib=avfilter");
+    println!("cargo:rustc-link-lib=avcodec");
+    println!("cargo:rustc-link-lib=swresample");
+    println!("cargo:rustc-link-lib=swscale");
+    println!("cargo:rustc-link-lib=avutil");
+    println!("cargo:rustc-link-lib=static=hodges");
 
     // if cfg!(target_os = "windows") {
     //     // If we're linking for windows, we don't need to link

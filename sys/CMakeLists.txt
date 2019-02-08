@@ -1,14 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
 find_package(PkgConfig REQUIRED)
 
-# FFMPEG_LIBS=    libavdevice                        \
-#                 libavformat                        \
-#                 libavfilter                        \
-#                 libavcodec                         \
-#                 libswresample                      \
-#                 libswscale                         \
-# 				libavutil \
-
 project(hodges)
 
 # Search for ffmpeg libraries
@@ -29,7 +21,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -v -O3")
+
 
 
 # Add the hodges library
@@ -40,9 +33,36 @@ target_include_directories(hodges
     PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
-target_link_libraries(hodges PUBLIC ${LIBAVDEVICE_LIBRARIES} ${LIBAVFORMAT_LIBRARIES} ${LIBAVFILTER_LIBRARIES} ${LIBAVCODEC_LIBRARIES} ${LIBSWRESAMPLE_LIBRARIES} ${LIBSWSCALE_LIBRARIES} ${LIBAVUTIL_LIBRARIES})
-target_include_directories(hodges PUBLIC ${LIBAVDEVICE_INCLUDE_DIRS} ${LIBAVFORMAT_INCLUDE_DIRS} ${LIBAVFILTER_INCLUDE_DIRS} ${LIBAVCODEC_INCLUDE_DIRS} ${LIBSWRESAMPLE_INCLUDE_DIRS} ${LIBSWSCALE_INCLUDE_DIRS} ${LIBAVUTIL_INCLUDE_DIRS})
-target_compile_options(hodges PUBLIC ${LIBAVDEVICE_CFLAGS_OTHER} ${LIBAVFORMAT_CFLAGS_OTHER} ${LIBAVFILTER_CFLAGS_OTHER} ${LIBAVCODEC_CFLAGS_OTHER} ${LIBSWRESAMPLE_CFLAGS_OTHER} ${LIBSWSCALE_CFLAGS_OTHER} ${LIBAVUTIL_CFLAGS_OTHER})
+
+MESSAGE(STATUS "Libavfilter: " ${LIBAVFILTER_INCLUDE_DIRS})
+
+TARGET_LINK_LIBRARIES(hodges PUBLIC 
+    ${LIBAVDEVICE_LDFLAGS} 
+    ${LIBAVFORMAT_LDFLAGS}
+    ${LIBAVFILTER_LDFLAGS}
+    ${LIBAVCODEC_LDFLAGS}
+    ${LIBSWRESAMPLE_LDFLAGS}
+    ${LIBSWSCALE_LDFLAGS}
+    ${LIBAVUTIL_LDFLAGS}
+)
+TARGET_INCLUDE_DIRECTORIES(hodges PUBLIC
+    ${LIBAVDEVICE_INCLUDE_DIRS}
+    ${LIBAVFORMAT_INCLUDE_DIRS}
+    ${LIBAVFILTER_INCLUDE_DIRS}
+    ${LIBAVCODEC_INCLUDE_DIRS}
+    ${LIBSWRESAMPLE_INCLUDE_DIRS}
+    ${LIBSWSCALE_INCLUDE_DIRS}
+    ${LIBAVUTIL_INCLUDE_DIRS}
+)
+TARGET_COMPILE_OPTIONS(hodges PUBLIC
+    ${LIBAVDEVICE_CFLAGS_OTHER}
+    ${LIBAVFORMAT_CFLAGS_OTHER}
+    ${LIBAVFILTER_CFLAGS_OTHER}
+    ${LIBAVCODEC_CFLAGS_OTHER}
+    ${LIBSWRESAMPLE_CFLAGS_OTHER}
+    ${LIBSWSCALE_CFLAGS_OTHER}
+    ${LIBAVUTIL_CFLAGS_OTHER}
+)
 set_target_properties(hodges PROPERTIES PUBLIC_HEADER "${hodges_headers}")
 set_target_properties(hodges PROPERTIES LINKER_LANGUAGE C)
 

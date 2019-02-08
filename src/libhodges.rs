@@ -12,18 +12,18 @@ use std::path::PathBuf;
 
 use std::marker::PhantomData;
 
-struct HodgesState<T> {
+pub struct State<T> {
     state_ptr: *mut std::os::raw::c_void,
     phantom: PhantomData<T>,
 }
 
-trait HodgesSource {
+pub trait Source {
     type SampleT;
     fn get(&self) -> Result<Self::SampleT, YieldState>;
 }
 
-impl<T> HodgesState<T> {
-    fn from_file<P: Into<PathBuf>>(filename: P) -> Option<Self> {
+impl<T> State<T> {
+    pub fn from_file<P: Into<PathBuf>>(filename: P) -> Option<Self> {
         // get the filename as a string, then a c string
         let cs_filename = filename
             .into()
@@ -41,7 +41,7 @@ impl<T> HodgesState<T> {
             }
 
             // Finally, return the state
-            Some(HodgesState {
+            Some(State {
                 state_ptr: state_ptr,
                 phantom: PhantomData,
             })
@@ -49,7 +49,7 @@ impl<T> HodgesState<T> {
     }
 }
 
-impl HodgesSource for HodgesState<i8> {
+impl Source for State<i8> {
     type SampleT = i8;
     fn get(&self) -> Result<Self::SampleT, YieldState> {
         unsafe {
@@ -65,7 +65,7 @@ impl HodgesSource for HodgesState<i8> {
     }
 }
 
-impl HodgesSource for HodgesState<f32> {
+impl Source for State<f32> {
     type SampleT = f32;
     fn get(&self) -> Result<Self::SampleT, YieldState> {
         unsafe {
@@ -80,7 +80,7 @@ impl HodgesSource for HodgesState<f32> {
     }
 }
 
-impl<T> Drop for HodgesState<T> {
+impl<T> Drop for State<T> {
     fn drop(&mut self) -> () {
         unsafe {
             cleanup(self.state_ptr);

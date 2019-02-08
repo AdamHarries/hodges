@@ -8,6 +8,8 @@ edition = "2018"
 byteorder = "1"
 libc = "0.2"
 log = "0.4"
+flame = "0.2.2"
+flamer = "0.3"
 
 [build-dependencies]
 bindgen = "0.37.0"
