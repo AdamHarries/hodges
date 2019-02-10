@@ -391,3 +391,19 @@ float get_float(void* st) {
   PgState* state = (PgState*)st;
   return state->f;
 }
+
+enum YieldState get_char_buffer(void* st, char** buffer, int* samples) {
+  PgState* state = (PgState*)st;
+  TRY_CALL(pull_frame(state));
+
+  *buffer = (char*)(state->arr_ix);
+  *samples = (state->samples) / sizeof(output_t);
+}
+
+enum YieldState get_float_buffer(void* st, float** buffer, int* samples) {
+  PgState* state = (PgState*)st;
+  TRY_CALL(pull_frame(state));
+
+  *buffer = state->arr_ix;
+  *samples = state->samples;
+}

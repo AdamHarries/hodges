@@ -30,4 +30,7 @@ char get_char(void* st);
 enum YieldState advance_float_iterator(void* st);
 float get_float(void* st);
 
+enum YieldState get_char_buffer(void* st, char** buffer, int* samples);
+
+enum YieldState get_float_buffer(void* st, float** buffer, int* samples);
 #endif

@@ -1,7 +1,7 @@
 [package]
 name = "hodges"
 version = "0.1.0"
-authors = ["Adam Harries <adam.harries@codeplay.com>"]
+authors = ["Adam Harries <harries.adam@gmail.com>"]
 edition = "2018"
 
 [dependencies]
@@ -10,7 +10,8 @@ libc = "0.2"
 log = "0.4"
 flame = "0.2.2"
 flamer = "0.3"
+rand = "0.6.5"
 
 [build-dependencies]
-bindgen = "0.37.0"
-cmake = "0.1.31"
+bindgen = "0.47.1"
+cmake = "0.1.35"
