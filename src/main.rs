@@ -1,76 +1,103 @@
-pub mod audiobuffer;
-pub mod audiostream;
-pub mod libhodges;
+pub mod impls;
 pub mod naive_estimator;
 pub mod reference;
+pub mod sources;
 
-use libhodges::*;
 use naive_estimator::*;
-use std::env;
+
+use impls::hodges::*;
+
+use std::fs::File;
+
+use std::collections::HashMap;
 
 extern crate flame;
 #[macro_use]
 extern crate flamer;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let filename = args[1].clone();
+    // let args: Vec<String> = env::args().collect();
+    // let dirname = args[1].clone();
+    let dirname = "/home/adam/personal/hodges/audio/tracks";
 
-    for n in &mut [Naive::default(), Naive::rough(), Naive::fine()] {
-        println!("Naive estimator: {:?}", n);
-        flame::start("read into buffer");
-        let b1 = reference::read_audio(filename.clone());
-        let bpm = n.analyse(b1);
-        flame::end("read into buffer");
-        println!("Bpm: {}", bpm);
+    let mut estimator = Naive::default();
 
-        flame::start("read via stream into buffer");
-        let bpm2 = reference::read_audio_stream(filename.clone(), n);
-        flame::end("read via stream into buffer");
-        println!("Bpm2: {}", bpm2);
+    let mut calls = 0;
+    for fr in std::fs::read_dir(dirname).unwrap() {
+        let path = fr.unwrap().path();
+        let filename = path.to_str().unwrap().to_string();
+        // let filename = String::from("/home/adam/personal/hodges/audio/tracks/campus.mp3");
 
-        flame::start("read with hodges");
-        let bpm3 = {
-            let state: libhodges::State<f32> = libhodges::State::from_file(filename.clone())
-                .expect("Failed to open file with libhodges");
-            n.analyse(state)
-        };
-        flame::end("read with hodges");
-        println!("Bpm3: {}", bpm3);
+        println!("\nReading from file: {}", filename);
+        // repeat our experiments
+        let iterations = 10;
+        for _i in 0..iterations {
+            // for n in &mut [Naive::default(), Naive::rough(), Naive::fine()] {
+            //     println!("Naive estimator: {:?}", n);
+            {
+                let bpm = reference::r_ia(filename.clone(), &mut estimator);
+                println!("r_ia: {}", bpm);
+            }
+            {
+                let bpm = reference::r_ib_ia(filename.clone(), &mut estimator);
+                println!("r_ib_ia: {}", bpm);
+            }
+            {
+                let bpm = dr_ia(filename.clone(), &mut estimator);
+                println!("dr_ia bpm: {}", bpm);
+            }
+            {
+                let bpm = dr_ib_ia(filename.clone(), &mut estimator);
+                println!("dr_ib_ia bpm: {}", bpm);
+            }
+            {
+                let bpm = dr_ib_va(filename.clone(), &mut estimator);
+                println!("dr_ib_va bpm: {}", bpm);
+            }
+            {
+                let bpm = br_ib_va(filename.clone(), &mut estimator);
+                println!("br_ib_va bpm: {}", bpm);
+            }
+            {
+                let bpm = br_ib_ia(filename.clone(), &mut estimator);
+                println!("br_ib_ia bpm: {}", bpm);
+            }
+            calls += 1;
+        }
 
-        flame::start("read buffer with hodges");
-        let bpm4 = {
-            let mut vec: Vec<f32> = Vec::with_capacity(1024 * 1024 * 1024);
-            let state: libhodges::State<f32> = libhodges::State::from_file(filename.clone())
-                .expect("Failed to open file with libhodges");
+        {
+            let spans = flame::spans();
+            let mut times: HashMap<&str, u64> = HashMap::new();
+            let mut min_times: HashMap<&str, u64> = HashMap::new();
 
-            while let Ok(buffer) = state.get_buffer() {
-                vec.extend_from_slice(buffer);
+            for s in spans.iter() {
+                let time = times.entry(&s.name).or_insert(0);
+                *time += s.delta;
+
+                let min_time = min_times.entry(&s.name).or_insert(s.delta);
+                if s.delta < *min_time {
+                    *min_time = s.delta;
+                }
             }
 
-            n.analyse(vec.into_iter())
-        };
-
-        flame::end("read buffer with hodges");
-        println!("Bpm4: {}", bpm4);
-
-        flame::start("read and analyse buffer with hodges");
-        let bpm5 = {
-            let mut vec: Vec<f32> = Vec::with_capacity(1024 * 1024 * 1024);
-            let state: libhodges::State<f32> = libhodges::State::from_file(filename.clone())
-                .expect("Failed to open file with libhodges");
-
-            while let Ok(buffer) = state.get_buffer() {
-                vec.extend_from_slice(buffer);
+            println!("=== Mean times: ===");
+            for (k, v) in times.iter() {
+                println!(
+                    "span: {}, time: {}",
+                    k,
+                    (*v as f64) * 1e-6 * (1.0 / calls as f64)
+                );
             }
 
-            n.analyse_vec(&vec)
-        };
-
-        flame::end("read and analyse buffer with hodges");
-        println!("Bpm5: {}", bpm5);
-
-        flame::dump_stdout();
-        flame::clear();
+            println!("=== Min times: ===");
+            for (k, v) in min_times.iter() {
+                println!("span: {}, time: {}", k, (*v as f64) * 1e-6);
+            }
+        }
+        println!(" ------- ")
     }
+
+    // flame::dump_stdout();
+
+    // flame::dump_html(&mut File::create("flame-graph.html").unwrap()).unwrap();
 }

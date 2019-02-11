@@ -1,10 +1,11 @@
-use super::audiobuffer;
-use super::audiostream;
 use super::naive_estimator::*;
+use super::sources::audiobuffer;
+use super::sources::audiostream;
 use std::process::Command;
 use std::process::Stdio;
 
-pub fn read_audio(filename: String) -> audiobuffer::AudioBuffer {
+#[flame]
+pub fn r_ib_ia(filename: String, estimator: &mut Naive) -> f32 {
     let mut command = Command::new("ffmpeg");
 
     let args: Vec<String> = vec![
@@ -47,10 +48,11 @@ pub fn read_audio(filename: String) -> audiobuffer::AudioBuffer {
 
     child.wait().expect("Failed to wait on ffmpeg child call!");
 
-    buffer
+    estimator.analyse(buffer)
 }
 
-pub fn read_audio_stream(filename: String, estimator: &mut Naive) -> f32 {
+#[flame]
+pub fn r_ia(filename: String, estimator: &mut Naive) -> f32 {
     let mut command = Command::new("ffmpeg");
 
     let args: Vec<String> = vec![

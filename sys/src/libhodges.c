@@ -398,6 +398,8 @@ enum YieldState get_char_buffer(void* st, char** buffer, int* samples) {
 
   *buffer = (char*)(state->arr_ix);
   *samples = (state->samples) / sizeof(output_t);
+
+  return DataAvailable;
 }
 
 enum YieldState get_float_buffer(void* st, float** buffer, int* samples) {
@@ -406,4 +408,6 @@ enum YieldState get_float_buffer(void* st, float** buffer, int* samples) {
 
   *buffer = state->arr_ix;
   *samples = state->samples;
+
+  return DataAvailable;
 }
