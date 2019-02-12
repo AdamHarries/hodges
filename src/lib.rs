@@ -85,6 +85,38 @@ impl Source for State<i8> {
     }
 }
 
+impl Source for State<u8> {
+    type SampleT = u8;
+    fn get(&self) -> Result<Self::SampleT, YieldState> {
+        unsafe {
+            // Get a character;
+            let status = advance_char_iterator(self.state_ptr);
+            if status == YieldState_DataAvailable {
+                let c = get_char(self.state_ptr);
+                Ok(c as u8)
+            } else {
+                Err(status)
+            }
+        }
+    }
+
+    fn get_buffer(&self) -> Result<&[Self::SampleT], YieldState> {
+        unsafe {
+            let mut buffer: *mut i8 = ptr::null_mut();
+            let mut samples: i32 = 0;
+
+            let status = get_char_buffer(self.state_ptr, &mut buffer, &mut samples);
+
+            if status == YieldState_DataAvailable {
+                let array: &[u8] = slice::from_raw_parts(buffer as *mut u8, samples as usize);
+                Ok(array)
+            } else {
+                Err(status)
+            }
+        }
+    }
+}
+
 impl Source for State<f32> {
     type SampleT = f32;
     fn get(&self) -> Result<Self::SampleT, YieldState> {
@@ -120,6 +152,17 @@ impl Iterator for State<i8> {
     type Item = i8;
 
     fn next(&mut self) -> Option<i8> {
+        match self.get() {
+            Ok(s) => Some(s),
+            Err(_) => None,
+        }
+    }
+}
+
+impl Iterator for State<u8> {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<u8> {
         match self.get() {
             Ok(s) => Some(s),
             Err(_) => None,

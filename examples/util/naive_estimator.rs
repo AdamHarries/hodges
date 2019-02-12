@@ -63,7 +63,7 @@ impl Naive {
      * We currently have the fairly major (imho) limitation that the entire
      * vector of samples must be read into memory before we can process it.
      */
-    // #[flame]
+    #[flame]
     pub fn analyse<T>(self: &mut Naive, samples: T) -> f32
     where
         T: Iterator<Item = f32>,
@@ -94,34 +94,11 @@ impl Naive {
         self.scan_for_bpm(&nrg)
     }
 
-    pub fn analyse_vec(self: &mut Naive, samples: &Vec<f32>) -> f32 {
-        let mut nrg: Vec<f32> = Vec::with_capacity(samples.len() / self.interval as usize);
-        let mut n: u64 = 0;
-
-        let mut v: f32 = 0.0;
-        for s in samples {
-            let z: f32 = s.abs();
-            if z > v {
-                v += (z - v) / 8.0;
-            } else {
-                v -= (v - z) / 512.0;
-            }
-
-            n += 1;
-            if n == self.interval {
-                n = 0;
-                nrg.push(v);
-            }
-        }
-
-        self.scan_for_bpm(&nrg)
-    }
-
     /*
      * Scan a range of BPM values for the one with the
      * minimum autodifference
      */
-    // #[flame]
+
     fn scan_for_bpm(self: &mut Naive, nrg: &Vec<f32>) -> f32 {
         let slowest = self.bpm_to_interval(self.lower);
         let fastest = self.bpm_to_interval(self.upper);

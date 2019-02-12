@@ -1,11 +1,32 @@
-use super::naive_estimator::*;
-use super::sources::audiobuffer;
-use super::sources::audiostream;
+use super::audiobuffer;
+use super::audiostream;
+use super::naive_estimator::Naive;
+use hodges::*;
 use std::process::Command;
 use std::process::Stdio;
 
 #[flame]
-pub fn r_ib_ia(filename: String, estimator: &mut Naive) -> f32 {
+pub fn h_fr(filename: String, estimator: &mut Naive) -> f32 {
+    let state: State<f32> =
+        State::from_file(filename.clone()).expect("Failed to open file with libhodges");
+    estimator.analyse(state)
+}
+
+#[flame]
+pub fn h_br_ia(filename: String, estimator: &mut Naive) -> f32 {
+    let mut vec: Vec<f32> = Vec::with_capacity(1024 * 1024);
+    let state: State<f32> =
+        State::from_file(filename.clone()).expect("Failed to open file with libhodges");
+
+    while let Ok(buffer) = state.get_buffer() {
+        vec.extend_from_slice(buffer);
+    }
+
+    estimator.analyse(vec.into_iter())
+}
+
+#[flame]
+pub fn f_fr_ia(filename: String, estimator: &mut Naive) -> f32 {
     let mut command = Command::new("ffmpeg");
 
     let args: Vec<String> = vec![
@@ -48,11 +69,11 @@ pub fn r_ib_ia(filename: String, estimator: &mut Naive) -> f32 {
 
     child.wait().expect("Failed to wait on ffmpeg child call!");
 
-    estimator.analyse(buffer)
+    estimator.analyse(buffer.into_iter())
 }
 
 #[flame]
-pub fn r_ia(filename: String, estimator: &mut Naive) -> f32 {
+pub fn f_fr(filename: String, estimator: &mut Naive) -> f32 {
     let mut command = Command::new("ffmpeg");
 
     let args: Vec<String> = vec![

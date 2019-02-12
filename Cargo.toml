@@ -3,6 +3,10 @@ name = "hodges"
 version = "0.1.0"
 authors = ["Adam Harries <harries.adam@gmail.com>"]
 edition = "2018"
+build = "build.rs"
+
+[profile.release]
+debug = true
 
 [dependencies]
 byteorder = "1"
@@ -15,3 +19,5 @@ rand = "0.6.5"
 [build-dependencies]
 bindgen = "0.47.1"
 cmake = "0.1.35"
+
+# [[example]]
