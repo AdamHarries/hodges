@@ -208,7 +208,7 @@ end:
   return ret;
 }
 
-static enum YieldState pcmdump_log_err(enum YieldState errcode) {
+static inline enum YieldState pcmdump_log_err(enum YieldState errcode) {
 #ifdef DEBUG
   switch (errcode) {
     case DataAvailable:
@@ -244,7 +244,7 @@ static enum YieldState pcmdump_log_err(enum YieldState errcode) {
 }
 
 static inline enum YieldState send_packet(PgState* state) {
-  av_packet_unref(&(state->packet));
+  // av_packet_unref(&(state->packet));
   if ((state->ret = av_read_frame(state->fmt_ctx, &(state->packet))) < 0) {
     return Finished;
   }
@@ -259,7 +259,7 @@ static inline enum YieldState send_packet(PgState* state) {
 }
 
 static inline enum YieldState recv_frame(PgState* state) {
-  av_frame_unref(state->frame);
+  // av_frame_unref(state->frame);
   state->ret = avcodec_receive_frame(state->dec_ctx, state->frame);
 
   while (state->ret == AVERROR(EAGAIN) || state->ret == AVERROR_EOF) {
@@ -279,7 +279,7 @@ static inline enum YieldState recv_frame(PgState* state) {
 }
 
 static inline enum YieldState pull_frame(PgState* state) {
-  av_frame_unref(state->filt_frame);
+  // av_frame_unref(state->filt_frame);
   /* pull filtered audio from the filtergraph */
   state->ret =
       av_buffersink_get_frame(state->buffersink_ctx, state->filt_frame);
@@ -302,7 +302,9 @@ static inline enum YieldState pull_frame(PgState* state) {
   return DataAvailable;
 }
 
-/* public interface */
+/* ================
+   public interface
+   ================ */
 
 void* init_state(const char* filename) {
   int ret;
@@ -351,8 +353,7 @@ void cleanup(void* st) {
 
   free(state);
 }
-
-/* inline*/ enum YieldState advance_char_iterator(void* st) {
+enum YieldState advance_char_iterator(void* st) {
   PgState* state = (PgState*)st;
   if (!(state->arr_ix < state->arr_end)) {
     TRY_CALL(pull_frame(state));
@@ -375,7 +376,7 @@ char get_char(void* st) {
   return state->v;
 }
 
-/* inline*/ enum YieldState advance_float_iterator(void* st) {
+enum YieldState advance_float_iterator(void* st) {
   PgState* state = (PgState*)st;
   if (!(state->arr_ix < state->arr_end)) {
     TRY_CALL(pull_frame(state));

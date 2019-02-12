@@ -1,3 +1,4 @@
+// The audiostream from Ellington.
 use byteorder::*;
 use std::io::Read;
 

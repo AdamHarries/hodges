@@ -3,6 +3,7 @@
 // at http://www.pogo.org.uk/~mark/bpm-tools/ contact
 // mark@xwax.org for more information.
 
+use itertools::Itertools;
 use rand::distributions::Uniform;
 use rand::rngs::ThreadRng;
 use rand::thread_rng;
@@ -63,7 +64,7 @@ impl Naive {
      * We currently have the fairly major (imho) limitation that the entire
      * vector of samples must be read into memory before we can process it.
      */
-    // #[flame]
+    #[flame]
     pub fn analyse<T>(self: &mut Naive, samples: T) -> f32
     where
         T: Iterator<Item = f32>,
@@ -72,47 +73,20 @@ impl Naive {
          * at regular intervals, sample the energy to give a
          * low-resolution overview of the track
          */
-        let mut nrg: Vec<f32> = Vec::new(); //with_capacity(samples.len() / self.interval as usize);
-        let mut n: u64 = 0;
 
-        let mut v: f32 = 0.0;
-        for s in samples {
-            let z: f32 = s.abs();
-            if z > v {
-                v += (z - v) / 8.0;
-            } else {
-                v -= (v - z) / 512.0;
-            }
-
-            n += 1;
-            if n == self.interval {
-                n = 0;
-                nrg.push(v);
-            }
-        }
-
-        self.scan_for_bpm(&nrg)
-    }
-
-    pub fn analyse_vec(self: &mut Naive, samples: &Vec<f32>) -> f32 {
-        let mut nrg: Vec<f32> = Vec::with_capacity(samples.len() / self.interval as usize);
-        let mut n: u64 = 0;
-
-        let mut v: f32 = 0.0;
-        for s in samples {
-            let z: f32 = s.abs();
-            if z > v {
-                v += (z - v) / 8.0;
-            } else {
-                v -= (v - z) / 512.0;
-            }
-
-            n += 1;
-            if n == self.interval {
-                n = 0;
-                nrg.push(v);
-            }
-        }
+        flame::start("scan_select");
+        let nrg: Vec<f32> = samples
+            .scan(0.0, |v, s| {
+                let z: f32 = s.abs();
+                Some(if z > *v {
+                    *v + (z - *v) / 8.0
+                } else {
+                    *v - (*v - z) / 512.0
+                })
+            })
+            .step_by(self.interval as usize)
+            .collect();
+        flame::end("scan_select");
 
         self.scan_for_bpm(&nrg)
     }
@@ -121,7 +95,7 @@ impl Naive {
      * Scan a range of BPM values for the one with the
      * minimum autodifference
      */
-    // #[flame]
+    #[flame]
     fn scan_for_bpm(self: &mut Naive, nrg: &Vec<f32>) -> f32 {
         let slowest = self.bpm_to_interval(self.lower);
         let fastest = self.bpm_to_interval(self.upper);
@@ -130,13 +104,18 @@ impl Naive {
         let mut height = f32::INFINITY;
         let mut trough = f32::NAN;
 
+        // until we can generate random numbers, use the mean of the uniform distribution over [0.0, 1.0]
+        let side = Uniform::new(0.0, 1.0);
         // rust won't let us iterate over floats :(
         // write the iteration as a for loop instead
+
         let mut interval = fastest;
         while interval <= slowest {
             let mut t = 0.0;
+
             for _ in 0..self.samples {
-                t += self.autodifference(&nrg, interval);
+                let mid: f32 = self.rng.sample(side) * nrg.len() as f32;
+                t += self.autodifference(&nrg, interval, mid);
             }
 
             if t < height {
@@ -153,17 +132,13 @@ impl Naive {
     /*
      * Test an autodifference for the given interval
      */
-    fn autodifference(self: &mut Naive, nrg: &Vec<f32>, interval: f32) -> f32 {
+    fn autodifference(self: &mut Naive, nrg: &Vec<f32>, interval: f32, mid: f32) -> f32 {
         // define some arrays of constants
         const BEATS: [f32; 12] = [
             -32.0, -16.0, -8.0, -4.0, -2.0, -1.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0,
         ];
         const NOBEATS: [f32; 4] = [-0.5, -0.25, 0.25, 0.5];
 
-        // until we can generate random numbers, use the mean of the uniform distribution over [0.0, 1.0]
-        let side = Uniform::new(0.0, 1.0);
-        // const RANDOM_NUMBER: f32 = 0.5;
-        let mid: f32 = self.rng.sample(side) * nrg.len() as f32;
         let v: f32 = Naive::sample(&nrg, mid);
 
         let mut diff: f32 = 0.0;
