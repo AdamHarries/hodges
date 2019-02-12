@@ -1,7 +1,8 @@
 use super::audiobuffer;
 use super::audiostream;
 use super::naive_estimator::Naive;
-use hodges::*;
+use hodges::Source;
+use hodges::State;
 use std::process::Command;
 use std::process::Stdio;
 
@@ -9,20 +10,29 @@ use std::process::Stdio;
 pub fn h_fr(filename: String, estimator: &mut Naive) -> f32 {
     let state: State<f32> =
         State::from_file(filename.clone()).expect("Failed to open file with libhodges");
+
     estimator.analyse(state)
 }
 
 #[flame]
 pub fn h_br_ia(filename: String, estimator: &mut Naive) -> f32 {
     let mut vec: Vec<f32> = Vec::with_capacity(1024 * 1024);
-    let state: State<f32> =
+    let state: State<&[f32]> =
         State::from_file(filename.clone()).expect("Failed to open file with libhodges");
 
-    while let Ok(buffer) = state.get_buffer() {
+    while let Ok(buffer) = state.get() {
         vec.extend_from_slice(buffer);
     }
 
     estimator.analyse(vec.into_iter())
+}
+
+#[flame]
+pub fn h_br_ni(filename: String, estimator: &mut Naive) -> f32 {
+    let state: State<&[f32]> =
+        State::from_file(filename.clone()).expect("Failed to open file with libhodges");
+
+    estimator.analyse(state.flatten().cloned())
 }
 
 #[flame]

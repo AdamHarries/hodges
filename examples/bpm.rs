@@ -24,15 +24,17 @@ fn main() {
     println!("\nReading from file: {}", filename);
 
     let mut estimator = Naive::fine();
-    let state: State<f32> =
-        State::from_file(filename.clone()).expect("Failed to open file with libhodges");
 
     let bpm = if method == "direct" {
+        let state: State<f32> =
+            State::from_file(filename.clone()).expect("Failed to open file with libhodges");
         estimator.analyse(state)
     } else if method == "buffered" {
+        let state: State<&[f32]> =
+            State::from_file(filename.clone()).expect("Failed to open file with libhodges");
         let mut vec: Vec<f32> = Vec::with_capacity(1024 * 1024);
 
-        while let Ok(buffer) = state.get_buffer() {
+        while let Ok(buffer) = state.get() {
             vec.extend_from_slice(buffer);
         }
 

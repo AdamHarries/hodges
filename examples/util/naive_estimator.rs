@@ -72,7 +72,7 @@ impl Naive {
          * at regular intervals, sample the energy to give a
          * low-resolution overview of the track
          */
-        let mut nrg: Vec<f32> = Vec::new(); //with_capacity(samples.len() / self.interval as usize);
+        let mut nrg: Vec<f32> = Vec::with_capacity((1024 * 1024) / self.interval as usize);
         let mut n: u64 = 0;
 
         let mut v: f32 = 0.0;
@@ -139,7 +139,7 @@ impl Naive {
 
         // until we can generate random numbers, use the mean of the uniform distribution over [0.0, 1.0]
         let side = Uniform::new(0.0, 1.0);
-        // const RANDOM_NUMBER: f32 = 0.5;
+
         let mid: f32 = self.rng.sample(side) * nrg.len() as f32;
         let v: f32 = Naive::sample(&nrg, mid);
 

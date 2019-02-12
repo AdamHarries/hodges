@@ -13,9 +13,10 @@ extern crate flamer;
 /*
     Compare the various ways that we expose access to ffmpeg.
     - h_fr (use hodges, read a single float at a time across the ffi)
-    - h_br_ia (use hodges, read a buffer at a time, analyse by iterating)
+    - h_br_ia (use hodges, read a buffer at a time, intermediate array)
+    - h_br_ni (use hodges, read a buffer at a time, no intermediate array)
     - f_fr (use ffmpeg, read a single float at a time over pipe)
-    - f_fr_ia (use ffmpeg, read all bytes to a buffer, analyse by iterating)
+    - f_fr_ia (use ffmpeg, read all bytes to a buffer, intermediate array)
 
     Example usage:
         compare <audiofile> <trials>
@@ -34,6 +35,7 @@ fn main() {
         print!("T> {} / ", i);
         f += h_fr(filename.clone(), &mut estimator);
         f += h_br_ia(filename.clone(), &mut estimator);
+        f += h_br_ni(filename.clone(), &mut estimator);
         f += f_fr(filename.clone(), &mut estimator);
         f += f_fr_ia(filename.clone(), &mut estimator);
         println!("{}", f);
