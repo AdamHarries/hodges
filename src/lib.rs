@@ -159,7 +159,7 @@ impl<'a> Source for State<'a, &[f32]> {
     }
 }
 
-impl<'a> Iterator for State<'a,i8> {
+impl<'a> Iterator for State<'a, i8> {
     type Item = i8;
 
     fn next(&mut self) -> Option<i8> {
@@ -170,7 +170,7 @@ impl<'a> Iterator for State<'a,i8> {
     }
 }
 
-impl<'a> Iterator for State<'a,u8> {
+impl<'a> Iterator for State<'a, u8> {
     type Item = u8;
 
     fn next(&mut self) -> Option<u8> {
@@ -181,7 +181,7 @@ impl<'a> Iterator for State<'a,u8> {
     }
 }
 
-impl<'a> Iterator for State<'a,f32> {
+impl<'a> Iterator for State<'a, f32> {
     type Item = f32;
 
     fn next(&mut self) -> Option<f32> {
@@ -193,17 +193,17 @@ impl<'a> Iterator for State<'a,f32> {
 }
 
 impl<'a> Iterator for State<'a, &[f32]> {
-    type Item = &'a[f32];
+    type Item = &'a [f32];
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.get() {
             Ok(s) => Some(s),
-            Err(_) => None
+            Err(_) => None,
         }
     }
 }
 
-impl<'a,T> Drop for State<'a, T> {
+impl<'a, T> Drop for State<'a, T> {
     fn drop(&mut self) -> () {
         unsafe {
             cleanup(self.state_ptr);

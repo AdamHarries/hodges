@@ -15,6 +15,7 @@ log = "0.4"
 flame = "0.2.2"
 flamer = "0.3"
 rand = "0.6.5"
+itertools="0.6.5"
 
 [build-dependencies]
 bindgen = "0.47.1"

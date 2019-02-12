@@ -78,5 +78,5 @@ fn main() {
             (v.max as f64) * 1e-6
         );
     }
-    flame::clear();
+    flame::dump_stdout();
 }
