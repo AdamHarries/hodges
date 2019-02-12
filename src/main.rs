@@ -18,7 +18,7 @@ extern crate flamer;
 fn main() {
     // let args: Vec<String> = env::args().collect();
     // let dirname = args[1].clone();
-    let dirname = "/home/adam/personal/hodges/audio/tracks";
+    let dirname = "/Users/adam/projects/hodges/audio/tracks";
 
     let mut estimator = Naive::default();
 
@@ -30,7 +30,7 @@ fn main() {
 
         println!("\nReading from file: {}", filename);
         // repeat our experiments
-        let iterations = 10;
+        let iterations = 1;
         for _i in 0..iterations {
             // for n in &mut [Naive::default(), Naive::rough(), Naive::fine()] {
             //     println!("Naive estimator: {:?}", n);

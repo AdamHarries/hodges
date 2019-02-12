@@ -243,7 +243,7 @@ static enum YieldState pcmdump_log_err(enum YieldState errcode) {
   return errcode;
 }
 
-static /* inline*/ enum YieldState send_packet(PgState* state) {
+static inline enum YieldState send_packet(PgState* state) {
   av_packet_unref(&(state->packet));
   if ((state->ret = av_read_frame(state->fmt_ctx, &(state->packet))) < 0) {
     return Finished;
@@ -258,7 +258,7 @@ static /* inline*/ enum YieldState send_packet(PgState* state) {
   return DataAvailable;
 }
 
-static /* inline*/ enum YieldState recv_frame(PgState* state) {
+static inline enum YieldState recv_frame(PgState* state) {
   av_frame_unref(state->frame);
   state->ret = avcodec_receive_frame(state->dec_ctx, state->frame);
 
@@ -278,7 +278,7 @@ static /* inline*/ enum YieldState recv_frame(PgState* state) {
   return DataAvailable;
 }
 
-static /* inline*/ enum YieldState pull_frame(PgState* state) {
+static inline enum YieldState pull_frame(PgState* state) {
   av_frame_unref(state->filt_frame);
   /* pull filtered audio from the filtergraph */
   state->ret =
