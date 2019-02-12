@@ -8,6 +8,14 @@ extern crate flame;
 #[macro_use]
 extern crate flamer;
 
+/*
+    Calculate the bpm/tempo of an audio file using the naive estimator and hodges. If "direct" is given, read a single float at a time to the estimator, if "buffered" is given, read the whole audio file into an intermediate buffer (using the buffered interface), and then analyse it.
+
+    Example usage:
+        bpm <audiofile> direct
+    or
+        bpm <audiofile> buffered
+*/
 fn main() {
     let args: Vec<String> = env::args().collect();
     let filename = args[1].clone();

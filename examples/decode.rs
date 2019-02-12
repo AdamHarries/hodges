@@ -10,10 +10,11 @@ extern crate flame;
 extern crate flamer;
 
 /*
+    Decode an audio file such that it can be played by (e.g.) ffplay.
+
     Example usage:
         decode <audiofile> | ffplay -f f32le -ar 44100 -ac 1 -
 */
-
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
     let filename = args[1].clone();
