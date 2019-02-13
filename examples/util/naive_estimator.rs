@@ -156,7 +156,7 @@ impl Naive {
     /*
      * Beats-per-minute to a sampling interval in energy space
      */
-    #[inline]
+    #[inline(always)]
     fn bpm_to_interval(self: &Naive, bpm: f32) -> f32 {
         let beats_per_second: f32 = bpm / 60.0;
         let samples_per_beat: f32 = self.rate / beats_per_second;
@@ -166,7 +166,7 @@ impl Naive {
     /*
      * Sampling interval in enery space to beats-per-minute
      */
-    #[inline]
+    #[inline(always)]
     fn interval_to_bpm(self: &Naive, interval: f32) -> f32 {
         let samples_per_beat: f32 = interval * self.interval as f32;
         let beats_per_second: f32 = self.rate / samples_per_beat;
