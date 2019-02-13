@@ -9,6 +9,8 @@ use rand::{thread_rng, Rng};
 
 use itertools_num::linspace;
 
+use itertools::iproduct;
+
 use std::f32;
 
 #[derive(Debug)]
@@ -24,6 +26,7 @@ pub struct Naive {
 }
 
 impl Naive {
+    // A reasonably performing, reasonably accurate default
     pub fn default() -> Naive {
         Naive {
             lower: 50.0,
@@ -36,28 +39,43 @@ impl Naive {
         }
     }
 
-    pub fn fine() -> Naive {
+    pub fn with_settings(interval: u64, steps: u32, samples: u32) -> Naive {
         Naive {
             lower: 50.0,
             upper: 450.0,
-            interval: 8,
+            interval: interval,
             rate: 44100.0,
-            steps: 1600,
-            samples: 4096,
+            steps: steps,
+            samples: samples,
             rng: thread_rng(),
         }
     }
 
-    pub fn rough() -> Naive {
-        Naive {
-            lower: 50.0,
-            upper: 450.0,
-            interval: 128,
-            rate: 44100.0,
-            steps: 400,
-            samples: 512,
-            rng: thread_rng(),
-        }
+    pub fn small_range() -> Vec<Naive> {
+        let intervals = vec![16, 64, 256];
+        let steps = vec![200, 800, 1600];
+        let samples = vec![512, 1024, 4096];
+
+        iproduct!(intervals, steps, samples)
+            .map(|(interval, step, samples)| Self::with_settings(interval, step, samples))
+            .collect()
+    }
+
+    pub fn large_range() -> Vec<Naive> {
+        let intervals = vec![8, 16, 32, 64, 128, 256, 512];
+        let steps = vec![200, 400, 800, 1600, 3200];
+        let samples = vec![512, 1024, 2048, 4096, 8192];
+
+        iproduct!(intervals, steps, samples)
+            .map(|(interval, step, samples)| Self::with_settings(interval, step, samples))
+            .collect()
+    }
+
+    pub fn settings(&self) -> String {
+        format!(
+            "[i: {}, st: {}, sm: {}]",
+            self.interval, self.steps, self.samples
+        )
     }
 
     /*
