@@ -1,13 +1,7 @@
-pub mod util;
 use hodges::*;
 
 use std::env;
-
 use std::io::{self, Write};
-
-extern crate flame;
-#[macro_use]
-extern crate flamer;
 
 /*
     Decode an audio file such that it can be played by (e.g.) ffplay.
