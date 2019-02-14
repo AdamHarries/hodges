@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Adam Harries <harries.adam@gmail.com>"]
 edition = "2018"
 build = "build.rs"
+license = "GPL-3.0-or-later"
+description = "A small library for high speed, high quality pcm audio decoding."
+repository = "https://github.com/AdamHarries/hodges"
+
 
 [dependencies]
 byteorder = "1"
