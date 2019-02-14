@@ -1,6 +1,2 @@
-*.flac
-*.mp3
-cimpl/pcmdump
 /target
-/experimental/target
 **/*.rs.bk
