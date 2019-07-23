@@ -210,3 +210,31 @@ impl<'a, T> Drop for State<'a, T> {
         }
     }
 }
+
+mod util {
+    use std::fs;
+    use std::path::Path;
+    fn dump_samples(samples: &Vec<f64>) -> String {
+        samples
+            .iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<String>>()
+            .join(",")
+    }
+
+    fn parse_samples(samples: String) -> Vec<f64> {
+        samples
+            .split(",")
+            .map(|f| f.parse::<f64>())
+            .collect::<Result<Vec<f64>, std::num::ParseFloatError>>()
+            .expect("Encountered an error while parsing floating point samples")
+    }
+
+    fn read_sample_file<P: AsRef<Path>>(filename: P) -> Vec<f64> {
+        parse_samples(fs::read_to_string(filename).expect("Failed to read string from file"))
+    }
+
+    fn write_sample_file<P: AsRef<Path>>(filename: P, samples: &Vec<f64>) -> () {
+        fs::write(filename, dump_samples(samples)).expect("Unwable to write samples to a file");
+    }
+}
