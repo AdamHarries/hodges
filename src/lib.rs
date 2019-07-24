@@ -21,7 +21,11 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
+mod sys {
+
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+
+};
 
 extern crate libc;
 
@@ -34,11 +38,13 @@ use std::marker::PhantomData;
 use std::ptr;
 use std::slice;
 
+/// Hodges is build around a `State` struct. These are our reference to the inner workings of libffmpeg, and are used to query the c interface for whether or not data is available.
 pub struct State<'a, T> {
     state_ptr: *mut std::os::raw::c_void,
     phantom: PhantomData<&'a T>,
 }
 
+/// The source trait provides an interface similar to
 pub trait Source {
     type SampleT;
     fn get(&self) -> Result<Self::SampleT, YieldState>;
@@ -227,33 +233,5 @@ impl<'a, T> Drop for State<'a, T> {
         unsafe {
             cleanup(self.state_ptr);
         }
-    }
-}
-
-mod util {
-    use std::fs;
-    use std::path::Path;
-    fn dump_samples(samples: &Vec<f64>) -> String {
-        samples
-            .iter()
-            .map(|f| f.to_string())
-            .collect::<Vec<String>>()
-            .join(",")
-    }
-
-    fn parse_samples(samples: String) -> Vec<f64> {
-        samples
-            .split(",")
-            .map(|f| f.parse::<f64>())
-            .collect::<Result<Vec<f64>, std::num::ParseFloatError>>()
-            .expect("Encountered an error while parsing floating point samples")
-    }
-
-    fn read_sample_file<P: AsRef<Path>>(filename: P) -> Vec<f64> {
-        parse_samples(fs::read_to_string(filename).expect("Failed to read string from file"))
-    }
-
-    fn write_sample_file<P: AsRef<Path>>(filename: P, samples: &Vec<f64>) -> () {
-        fs::write(filename, dump_samples(samples)).expect("Unwable to write samples to a file");
     }
 }
