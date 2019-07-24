@@ -8,6 +8,13 @@ license = "GPL-3.0-or-later"
 description = "A small library for high speed, high quality pcm audio decoding."
 repository = "https://github.com/AdamHarries/hodges"
 
+[lib]
+name="hodges"
+path="src/lib.rs"
+
+[[bin]]
+name= "decode"
+path= "examples/decode.rs"
 
 [dependencies]
 byteorder = "1"

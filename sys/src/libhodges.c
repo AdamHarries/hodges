@@ -1,13 +1,8 @@
 
-/**
- * @file
- * API example for audio decoding and filtering
- * @example filtering_audio.c
- */
 #include <unistd.h>
 
 #include <libavcodec/avcodec.h>
-// #include <libavfilter/avfiltergraph.h>
+
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavformat/avformat.h>
