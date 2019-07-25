@@ -10,6 +10,12 @@
 
 #include "libhodges.h"
 
+// typedef struct {
+//   int ix;   // Current index of our read
+//   int len;  // The total length of the buffer
+//   char* b;  // the buffer itself!
+// } InMemBuffer;
+
 typedef struct {
   // A generic return value for use by functions
   int ret;
@@ -25,12 +31,16 @@ typedef struct {
   AVPacket packet;
   AVFrame* frame;
   AVFrame* filt_frame;
+
   // char decoding state
   // Note, these *must* be zero initialised (either with calloc, or manually)
   int samples;
   output_t* arr_ix;
   output_t* arr_end;
   int i;
+
+  // Optional: a pointer to an in-memory buffer of encoded audio.
+  // InMemBuffer* buff;
 
   // The latest value.
   char v;
@@ -297,6 +307,62 @@ static inline enum YieldState pull_frame(PgState* state) {
   return DataAvailable;
 }
 
+/*
+  From stack overflow:
+ */
+
+#if 0
+static int readFunction(void* opaque, uint8_t* buf, int buf_size) {
+  auto& me = *reinterpret_cast<std::istream*>(opaque);
+  me.read(reinterpret_cast<char*>(buf), buf_size);
+  return me.gcount();
+}
+
+std::ifstream stream("file.avi", std::ios::binary);
+
+const std::shared_ptr<unsigned char> buffer(
+    reinterpret_cast<unsigned char*>(av_malloc(8192)),
+    &av_free);
+const std::shared_ptr<AVIOContext> avioContext(
+    avio_alloc_context(
+        buffer.get(),
+        8192,
+        0,
+        reinterpret_cast<void*>(static_cast<std::istream*>(&stream)),
+        &readFunction,
+        nullptr,
+        nullptr),
+    &av_free);
+
+const auto avFormat = std::shared_ptr<AVFormatContext>(avformat_alloc_context(),
+                                                       &avformat_free_context);
+auto avFormatPtr = avFormat.get();
+avFormat->pb = avioContext.get();
+avformat_open_input(&avFormatPtr, "dummyFilename", nullptr, nullptr);
+#endif
+
+// Making a big assumption that char = 8 bits (i.e. uint8_t)
+// static int read_from_buffer(void* opaquePtr, char* buf, int buf_size) {
+//   InMemBuffer* umb = (InMemBuffer*)opaquePtr;
+
+//   if (umb->ix + buf_size < umb->len) {
+//     // If we've still got enough data left to copy a whole buffer, go ahead!
+//     memcpy(buf, umb->b + umb->ix, buf_size);
+//     umb->ix += buf_size;
+//     return buf_size;
+//   } else {
+//     // Figure out how much we can copy
+//     int elems = umb->len - umb->ix;
+//     if (elems <= 0)
+//       return 0;
+//     memcpy(buf, umb->b + umb->ix, elems);
+//     umb->ix += elems;
+//     return elems;
+//   }
+
+//   return 0;
+// }
+
 /* ================
    public interface
    ================ */
@@ -333,6 +399,25 @@ void* init_state(const char* filename) {
 
   return (void*)state;
 }
+
+// void* init_state(const char* buffer, const int buffer_len) {
+//   // Init as per usual.
+//   int ret;
+
+//   av_log_set_level(AV_LOG_FATAL);
+//   PgState* state = (PgState*)calloc(1, sizeof(PgState));
+
+//   state->frame = av_frame_alloc();
+//   state->filt_frame = av_frame_alloc();
+
+//   if (!state->frame || !state->filt_frame) {
+//     perror("Could not allocate frame");
+//     return NULL;
+//   }
+
+//   av_register_all();
+//   avfilter_register_all();
+// }
 
 void cleanup(void* st) {
   PgState* state = (PgState*)st;
