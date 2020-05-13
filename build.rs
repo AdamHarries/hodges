@@ -7,7 +7,8 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    // tell cargo to build our taglib branch
+    // tell cargo to build the sys interface to ffmpeg
+    // Note, this requires the 'pkg-config' and 'libav*-dev' packages on ubuntu
     let dst = Config::new("sys")
         .static_crt(true)
         .very_verbose(true)
@@ -16,9 +17,6 @@ fn main() {
         .cflag("-Ofast")
         .cflag("-march=native")
         .cflag("-funroll-loops")
-        // .cxxflag("-fPIC")
-        // .cxxflag("-Wall")
-        // .cxxflag("-O3")
         .build();
     // Link hodges, and the various ffmpeg libraries, once we've told it where to search foor hodges
     println!("cargo:rustc-link-search={}", dst.display());

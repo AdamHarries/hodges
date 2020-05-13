@@ -1,21 +1,20 @@
 //! A rusty interface to libffmpeg for fast(ish) audio decoding.
 //!
 //! libhodges provides a simple to use interface for decoding audio files to single channel 44100hz 32-bit little endian PCM data. In effect, it's static bindings to ffmpeg that allow us to achieve the equivalent of this one-line ffmpeg call:
-//! ```
-//! ffmpeg -loglevel quiet -i <filename> -f f32le -acodec pcm_f32le -ac 1 -ar 44100 pipe:1
-//! ```
+//!
+//!     // ffmpeg -loglevel quiet -i <filename> -f f32le -acodec pcm_f32le -ac 1 -ar 44100 pipe:1
+//!
 //! Using libhodges, however, means that the user doesn't have to worry about subprocesses, streams, or other fun operating system rubbish - instead, they get access to the ffmpeg internals. The one line command line call can instead replaced with the following:
 //! ```
-//! let state: State<u8> =
-//!     State::from_file(filename.clone())?;
-
-//! for c in state {
-//!     io::stdout().write(&[c])?;
-//! }
-
-//! io::stdout().flush()?;
+//! // let state: State<u8> =
+//! //    State::from_file(filename.clone())?;
+//! //
+//! // for c in state {
+//! //     io::stdout().write(&[c])?;
+//! // }
+//! //
+//! // io::stdout().flush()?;
 //! ```
-//!
 //! # Naming
 //!
 //! Hodges is part of the `Ellington` project - a set of tools designed to make it easier for swing dance DJ's to automatically calculate the tempo of swing music. Each component of the project is named after a member of (or arranger for) Duke Ellington's band. Hodges is named after [Johnny Hodges](https://en.wikipedia.org/wiki/Johnny_Hodges), the lead alto sax player of Ellington's band, and one of the most skillful and talented alto sax players of the swing era.
